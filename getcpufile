@@ -1,0 +1,19 @@
+#!/bin/sh
+pwm_file=pwm.generated.h
+pwm_array='static const char *c_pwms[] = {
+'
+pwm_enable_array='static const char *c_pwms_enable[] = {
+'
+for file in /sys/class/hwmon/hwmon[0-9]*/pwm[0-9]*_enable; do
+	if [ $(cat "$file") -ne 2 ]; then
+		pwm_file=$(echo $file | sed 's/_enable//')
+		pwm_enable_file=$file
+		pwm_array="$pwm_array	\"$pwm_file\",
+"
+		pwm_enable_array="$pwm_enable_array	\"$pwm_enable_file\",
+"
+	fi
+done
+pwm_array="$pwm_array};"
+pwm_enable_array="$pwm_enable_array};"
+printf "%s\n%s\n" "$pwm_array" "$pwm_enable_array"
