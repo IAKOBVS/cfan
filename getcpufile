@@ -1,0 +1,11 @@
+#!/bin/sh
+for file in /sys/class/thermal/thermal_zone[0-9]*/type; do
+	if grep -qF 'x86_pkg_temp' "$file"; then
+		echo "#define CPU_TEMP_FILE \"$file\"" | sed 's/type/temp/'
+		exit
+	fi
+done
+echo "getcpufile: x86_pkg_temp not found. in $(echo /sys/class/thermal/thermal_zone[0-9]*/type)."
+echo "Probably not using x86."
+echo "Need to manually add CPU_TEMP_FILE macro in cpu.generated.h."
+exit 1

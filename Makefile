@@ -4,7 +4,7 @@ PREFIX = /usr/local
 
 all: $(PROG)
 
-cfan: config.h pwm.generated.h
+cfan: config.h pwm.generated.h cpu.generated.h
 	$(CC) -o $@ $(PROG).c $(CFLAGS) $(CPPFLAGS) $(LDFLAGS)
 
 config.h:
@@ -18,6 +18,9 @@ install: $(PROG)
 	chmod 755 $^
 	mkdir -p $(DESTDIR)$(PREFIX)/bin
 	command -v rsync >/dev/null && rsync -a -r -c $^ $(DESTDIR)$(PREFIX)/bin || cp -f $^ $(DESTDIR)$(PREFIX)/bin
+
+cpu.generated.h:
+	./getcpufile > $@
 
 pwm.generated.h:
 	./getpwmfiles > $@

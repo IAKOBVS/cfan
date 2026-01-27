@@ -33,7 +33,7 @@
 
 #include "macros.h"
 #include "pwm.generated.h"
-#include "cpu.h"
+#include "cpu.generated.h"
 
 #ifdef DEBUG
 #	define D(x) (x)
