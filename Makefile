@@ -20,7 +20,7 @@ install: $(PROG)
 	command -v rsync >/dev/null && rsync -a -r -c $^ $(DESTDIR)$(PREFIX)/bin || cp -f $^ $(DESTDIR)$(PREFIX)/bin
 
 pwm.generated.h:
-	./getcpufile > $@
+	./getpwmfiles > $@
 
 uninstall:
 	rm -f $(DESTDIR)$(PREFIX)/bin/$(PROG)
