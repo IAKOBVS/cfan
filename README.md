@@ -14,4 +14,3 @@ $ sudo cfan
 ```
 ## Configuration
 Fan speed is configured in config.h.
-# cfan
