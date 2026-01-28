@@ -172,7 +172,7 @@ c_mainloop(void)
 				DIE_GRACEFUL();
 #endif
 			for (unsigned int i = 0; i < LEN(c_pwms); ++i) {
-				DBG(fprintf(stderr, "Setting speed:%s.\n", buf));
+				DBG(fprintf(stderr, "Setting speed: %s.\n", buf));
 				if (unlikely(c_puts_len(c_pwms[i], buf, buf_len) == -1))
 					DIE_GRACEFUL();
 			}
