@@ -160,11 +160,20 @@ static void
 c_cleanup()
 {
 	for (unsigned int i = 0; i < LEN(c_pwms_enable); ++i) {
-		if (unlikely(c_puts_len(c_pwms_enable[i], S_LITERAL("100")) == -1))
+		if (unlikely(c_puts_len(c_pwms_enable[i], S_LITERAL(SPEED_MIN_DEF)) == -1))
 			DIE_GRACEFUL();
 		if (unlikely(c_putchar(c_pwms_enable[i], C_PWM_ENABLE_AUTO) == -1))
 			DIE_GRACEFUL();
 	}
+}
+
+static unsigned int
+speed_change(unsigned int speed, unsigned int last_speed)
+{
+	if (speed < last_speed)
+		return last_speed - ((last_speed - speed) / 2);
+	else
+		return speed;
 }
 
 static void
@@ -192,6 +201,7 @@ c_mainloop(void)
 			/* Avoid updating if speed has not changed. */
 			if (speed == last_speed)
 				break;
+			speed = speed_change(speed, last_speed);
 			last_speed = speed;
 			/* speed: 0-255 */
 			char buf[4];
