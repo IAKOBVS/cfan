@@ -4,7 +4,8 @@
 #	define INTERVAL      1
 #	define SPEED_MIN_DEF "100"
 
-/* PWM: 0-255 */
+/* Fan speed: 0-255
+ * table_pwm[temperature] = speed */
 static const unsigned char table_pwm[] = {
 	30,
 	30,
