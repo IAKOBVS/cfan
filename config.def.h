@@ -1,8 +1,11 @@
 #ifndef CONFIG_H
 #	define CONFIG_H 1
 
-#	define INTERVAL      1
-#	define SPEED_MIN_DEF "100"
+#	define INTERVAL_UPDATE   1
+#	define SPEED_MIN_DEF     table_pwm[0]
+#	define SPEED_MIN_DEF_STR "30"
+/* Maximum fan speed change per update when ramping down (0-255). */
+#	define STEPDOWN_MAX 8
 
 /* Fan speed: 0-255
  * table_pwm[temperature] = speed */
