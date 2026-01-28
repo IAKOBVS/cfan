@@ -1,8 +1,10 @@
 #ifndef CONFIG_H
 #	define CONFIG_H 1
 
-#	define INTERVAL  1
+#	define INTERVAL      1
+#	define SPEED_MIN_DEF "100"
 
+/* PWM: 0-255 */
 static const unsigned char table_pwm[] = {
 	30,
 	30,
