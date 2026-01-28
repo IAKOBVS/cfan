@@ -141,7 +141,7 @@ c_puts_len(const char *filename, const char *buf, unsigned int len)
 	return 0;
 }
 
-static int
+static ATTR_INLINE int
 c_putchar(const char *filename, char c)
 {
 	return c_puts_len(filename, &c, 1);
@@ -182,7 +182,8 @@ c_step(unsigned int speed, unsigned int last_speed)
 static void
 c_mainloop(void)
 {
-	unsigned int last_speed = MAX(table_pwm[0], STEPDOWN_MAX);
+	/* for c_step to work, last_speed MUST be >= STEPDOWN_MAX. */
+	unsigned int last_speed = STEPDOWN_MAX;
 	unsigned int speed;
 	unsigned int temp;
 	for (;;) {
@@ -190,15 +191,15 @@ c_mainloop(void)
 			temp = c_temp_get(CPU_TEMP_FILE);
 			if (unlikely(temp == (unsigned char)-1))
 				DIE_GRACEFUL();
-			D(fprintf(stderr, "cfan: temp:%d.\n", temp));
+			D(fprintf(stderr, "Getting temp: %d.\n", temp));
 			speed = table_pwm[temp];
-			D(fprintf(stderr, "cfan: temp:%d speed:%d.\n", temp, speed));
+			D(fprintf(stderr, "Geting speed: %d.\n", speed));
 			/* Avoid updating if speed has not changed. */
 			if (speed == last_speed)
 				break;
 			speed = c_step(speed, last_speed);
 			last_speed = speed;
-			D(fprintf(stderr, "cfan: step_down:.%d\n", speed));
+			D(fprintf(stderr, "Getting step: %d.\n", speed));
 			/* speed: 0-255 */
 			char buf[4];
 			const unsigned int buf_len = u_utoa_lt3_p(speed, buf) - buf;
@@ -207,12 +208,9 @@ c_mainloop(void)
 				DIE_GRACEFUL();
 #endif
 			for (unsigned int i = 0; i < LEN(c_pwms); ++i) {
+				D(fprintf(stderr, "Setting speed:%s.\n", buf));
 				if (unlikely(c_puts_len(c_pwms[i], buf, buf_len) == -1))
 					DIE_GRACEFUL();
-				D(fprintf(stderr, "========================="));
-				D(fprintf(stderr, "cfan: setting speed:%d.\n", speed));
-				D(fprintf(stderr, "cfan: speedstr:%s.\n", buf));
-				D(fprintf(stderr, "cfan: last speed:%d.\n", last_speed));
 			}
 			break;
 		}
