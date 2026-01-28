@@ -170,6 +170,7 @@ c_cleanup()
 static unsigned int
 speed_change(unsigned int speed, unsigned int last_speed)
 {
+	/* Hysteresis: ramp down slower. */
 	if (speed < last_speed)
 		return last_speed - ((last_speed - speed) / 2);
 	else
