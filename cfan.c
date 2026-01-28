@@ -34,7 +34,6 @@
 #include "pwm.generated.h"
 #include "cpu.generated.h"
 
-#define DEBUG 1
 #ifdef DEBUG
 #	define D(x) (x)
 #else
@@ -49,9 +48,9 @@
 
 #define MAX(x, y)    (((x) > (y)) ? (x) : (y))
 #define MIN(x, y)    (((x) < (y)) ? (x) : (y))
-#define S_LEN(s)     (sizeof(s) - 1)
-#define S_LITERAL(s) s, S_LEN(s)
 #define LEN(X)       (sizeof(X) / sizeof(X[0]))
+#define S_LITERAL(s) s, S_LEN(s)
+#define S_LEN(s)     (sizeof(s) - 1)
 
 #define DIE_GRACEFUL(x)                                                         \
 	do {                                                                    \
@@ -60,12 +59,6 @@
 		fprintf(stderr, "%s:%d:%s\n", __FILE__, __LINE__, ASSERT_FUNC); \
 		exit(EXIT_FAILURE);                                             \
 		x;                                                              \
-	} while (0)
-
-#define DIE(x)             \
-	do {               \
-		assert(0); \
-		x;         \
 	} while (0)
 
 static int
