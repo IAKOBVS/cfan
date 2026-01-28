@@ -33,7 +33,7 @@
 #include "cpu.generated.h"
 
 static int
-u_atoi_lt3(const char *buf, int len)
+c_atoi_lt3(const char *buf, int len)
 {
 	if (len == 2)
 		return (*(buf + 0) - '0') * 10 + (*(buf + 1) - '0');
@@ -44,7 +44,7 @@ u_atoi_lt3(const char *buf, int len)
 }
 
 static char *
-u_utoa_lt3_p(unsigned int num, char *buf)
+c_utoa_lt3_p(unsigned int num, char *buf)
 {
 	/* digits == 2 */
 	if (likely((unsigned int)(num - 10) < 90)) {
@@ -86,7 +86,7 @@ c_temp_get(const char *temp_file)
 	/* Don't read the milidegrees. */
 	read_sz -= S_LEN("000");
 	*(buf + read_sz) = '\0';
-	return u_atoi_lt3(buf, read_sz);
+	return c_atoi_lt3(buf, read_sz);
 }
 
 static int
@@ -103,6 +103,12 @@ c_puts_len(const char *filename, const char *buf, unsigned int len)
 	if (unlikely(close(fd) == -1))
 		DIE_GRACEFUL(return -1);
 	return 0;
+}
+
+static ATTR_INLINE int
+c_fanspeed_set(const char *fan_file, const char *buf, unsigned int len)
+{
+	return c_puts_len(fan_file, buf, len);
 }
 
 static ATTR_INLINE int
@@ -166,14 +172,14 @@ c_mainloop(void)
 			DBG(fprintf(stderr, "Getting step: %d.\n", speed));
 			/* speed: 0-255 */
 			char buf[4];
-			const unsigned int buf_len = u_utoa_lt3_p(speed, buf) - buf;
+			const unsigned int buf_len = c_utoa_lt3_p(speed, buf) - buf;
 #ifdef DEBUG
 			if (unlikely((int)speed != atoi(buf)))
 				DIE_GRACEFUL();
 #endif
 			for (unsigned int i = 0; i < LEN(c_pwms); ++i) {
 				DBG(fprintf(stderr, "Setting speed: %s.\n", buf));
-				if (unlikely(c_puts_len(c_pwms[i], buf, buf_len) == -1))
+				if (unlikely(c_fanspeed_set(c_pwms[i], buf, buf_len) == -1))
 					DIE_GRACEFUL();
 			}
 			break;
