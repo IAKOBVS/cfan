@@ -25,41 +25,12 @@
 #include <assert.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <stdio.h>
-#include <errno.h>
 
 #include "macros.h"
 #include "config.h"
 
 #include "pwm.generated.h"
 #include "cpu.generated.h"
-
-#ifdef DEBUG
-#	define D(x) (x)
-#else
-#	define D(x)
-#endif
-
-#ifdef __ASSERT_FUNCTION
-#	define ASSERT_FUNC __ASSERT_FUNCTION
-#else
-#	define ASSERT_FUNC __func__
-#endif
-
-#define MAX(x, y)    (((x) > (y)) ? (x) : (y))
-#define MIN(x, y)    (((x) < (y)) ? (x) : (y))
-#define LEN(X)       (sizeof(X) / sizeof(X[0]))
-#define S_LITERAL(s) s, S_LEN(s)
-#define S_LEN(s)     (sizeof(s) - 1)
-
-#define DIE_GRACEFUL(x)                                                         \
-	do {                                                                    \
-		if (errno)                                                      \
-			perror("");                                             \
-		fprintf(stderr, "%s:%d:%s\n", __FILE__, __LINE__, ASSERT_FUNC); \
-		exit(EXIT_FAILURE);                                             \
-		x;                                                              \
-	} while (0)
 
 static int
 u_atoi_lt3(const char *buf, int len)
@@ -184,15 +155,15 @@ c_mainloop(void)
 			temp = c_temp_get(CPU_TEMP_FILE);
 			if (unlikely(temp == (unsigned char)-1))
 				DIE_GRACEFUL();
-			D(fprintf(stderr, "Getting temp: %d.\n", temp));
+			DBG(fprintf(stderr, "Getting temp: %d.\n", temp));
 			speed = table_pwm[temp];
-			D(fprintf(stderr, "Geting speed: %d.\n", speed));
+			DBG(fprintf(stderr, "Geting speed: %d.\n", speed));
 			/* Avoid updating if speed has not changed. */
 			if (speed == last_speed)
 				break;
 			speed = c_step(speed, last_speed);
 			last_speed = speed;
-			D(fprintf(stderr, "Getting step: %d.\n", speed));
+			DBG(fprintf(stderr, "Getting step: %d.\n", speed));
 			/* speed: 0-255 */
 			char buf[4];
 			const unsigned int buf_len = u_utoa_lt3_p(speed, buf) - buf;
@@ -201,7 +172,7 @@ c_mainloop(void)
 				DIE_GRACEFUL();
 #endif
 			for (unsigned int i = 0; i < LEN(c_pwms); ++i) {
-				D(fprintf(stderr, "Setting speed:%s.\n", buf));
+				DBG(fprintf(stderr, "Setting speed:%s.\n", buf));
 				if (unlikely(c_puts_len(c_pwms[i], buf, buf_len) == -1))
 					DIE_GRACEFUL();
 			}

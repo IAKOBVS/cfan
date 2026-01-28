@@ -1,6 +1,42 @@
 #ifndef MACROS_H
 #	define MACROS_H 1
 
+#	include <stdio.h>
+#	include <errno.h>
+
+#	ifdef DEBUG
+#		define DBG(x) (x)
+#	else
+#		define DBG(x)
+#	endif
+
+#	ifdef __ASSERT_FUNCTION
+#		define ASSERT_FUNC __ASSERT_FUNCTION
+#	else
+#		define ASSERT_FUNC __func__
+#	endif
+
+#	define MAX(x, y)    (((x) > (y)) ? (x) : (y))
+#	define MIN(x, y)    (((x) < (y)) ? (x) : (y))
+#	define LEN(X)       (sizeof(X) / sizeof(X[0]))
+#	define S_LITERAL(s) s, S_LEN(s)
+#	define S_LEN(s)     (sizeof(s) - 1)
+
+#	ifdef __ASSERT_FUNCTION
+#		define ASSERT_FUNC __ASSERT_FUNCTION
+#	else
+#		define ASSERT_FUNC __func__
+#	endif
+
+#	define DIE_GRACEFUL(x)                                                         \
+		do {                                                                    \
+			if (errno)                                                      \
+				perror("");                                             \
+			fprintf(stderr, "%s:%d:%s\n", __FILE__, __LINE__, ASSERT_FUNC); \
+			exit(EXIT_FAILURE);                                             \
+			x;                                                              \
+		} while (0)
+
 #	ifdef __glibc_has_builtin
 #		define HAS_BUILTIN(name) __glibc_has_builtin(name)
 #	elif defined __has_builtin
