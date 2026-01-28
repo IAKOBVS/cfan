@@ -4,15 +4,27 @@ pwm_array='static const char *c_pwms[] = {
 '
 pwm_enable_array='static const char *c_pwms_enable[] = {
 '
-for file in /sys/class/hwmon/hwmon[0-9]*/pwm[0-9]*_enable; do
-	if [ $(cat "$file") -ne 2 ]; then
-		pwm_file=$(echo $file | sed 's/_enable//')
-		pwm_enable_file=$file
-		pwm_array="$pwm_array	\"$pwm_file\",
+files=$(echo /sys/class/hwmon/hwmon[0-9]*/pwm[0-9]*_enable)
+if [ -z "$files" ]; then
+	echo "getpwmfiles: pwm files not found in $files"
+	echo "Example pwm.generated.h:"
+	echo 'static const char *c_pwms[] = {'
+	echo '	"/path/to/pwm1"'
+	echo '	"/path/to/pwm2"'
+	echo '};'
+	echo 'static const char *c_pwms_enable[] = {'
+	echo '	"/path/to/pwm1_enable"'
+	echo '	"/path/to/pwm2_enable"'
+	echo '};'
+	exit 1
+fi
+for file in $files; do
+	pwm_file=$(echo $file | sed 's/_enable//')
+	pwm_enable_file=$file
+	pwm_array="$pwm_array	\"$pwm_file\",
 "
-		pwm_enable_array="$pwm_enable_array	\"$pwm_enable_file\",
+	pwm_enable_array="$pwm_enable_array	\"$pwm_enable_file\",
 "
-	fi
 done
 pwm_array="$pwm_array};"
 pwm_enable_array="$pwm_enable_array};"

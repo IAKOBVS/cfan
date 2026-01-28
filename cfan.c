@@ -196,8 +196,8 @@ c_mainloop(void)
 			/* speed: 0-255 */
 			char buf[4];
 			const unsigned int buf_len = u_utoa_lt3(speed, buf) - buf;
-			if (atoi(buf) != (int)speed)
-				DIE_GRACEFUL();
+			D(if (atoi(buf) != (int)speed)
+			  DIE_GRACEFUL());
 			for (unsigned int i = 0; i < LEN(c_pwms); ++i) {
 				if (unlikely(c_puts_len(c_pwms[i], buf, buf_len) == -1))
 					DIE_GRACEFUL();
