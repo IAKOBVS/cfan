@@ -20,9 +20,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE. */
 
-/* TODO: use graphs to generate fan speed */
-#include "config.h"
-
 #include <stdlib.h>
 #include <unistd.h>
 #include <assert.h>
@@ -32,9 +29,12 @@
 #include <errno.h>
 
 #include "macros.h"
+#include "config.h"
+
 #include "pwm.generated.h"
 #include "cpu.generated.h"
 
+#define DEBUG 1
 #ifdef DEBUG
 #	define D(x) (x)
 #else
@@ -47,6 +47,8 @@
 #	define ASSERT_FUNC __func__
 #endif
 
+#define MAX(x, y)    (((x) > (y)) ? (x) : (y))
+#define MIN(x, y)    (((x) < (y)) ? (x) : (y))
 #define S_LEN(s)     (sizeof(s) - 1)
 #define S_LITERAL(s) s, S_LEN(s)
 #define LEN(X)       (sizeof(X) / sizeof(X[0]))
@@ -73,27 +75,30 @@ u_atoi_lt3(const char *buf, int len)
 		return (*(buf + 0) - '0') * 10 + (*(buf + 1) - '0');
 	if (len == 3)
 		return (*(buf + 0) - '0') * 100 + (*(buf + 1) - '0') * 10 + (*(buf + 2) - '0');
-	/* if (len == 1) */
+	/* len == 1 */
 	return *(buf + 0) - '0';
 }
 
 static char *
-u_utoa_lt3(unsigned int number, char *buf)
+u_utoa_lt3_p(unsigned int num, char *buf)
 {
-	if (number > 99) {
-		*(buf + 0) = (number / 100) + '0';
-		*(buf + 1) = ((number / 10) % 10) + '0';
-		*(buf + 2) = (number % 10) + '0';
-		*(buf + 3) = '\0';
-		return buf + 3;
-	}
-	if (number > 9) {
-		*(buf + 0) = (number / 10) + '0';
-		*(buf + 1) = (number % 10) + '0';
+	/* digits == 2 */
+	if (likely((unsigned int)(num - 10) < 90)) {
+		*(buf + 0) = (num / 10) + '0';
+		*(buf + 1) = (num % 10) + '0';
 		*(buf + 2) = '\0';
 		return buf + 2;
 	}
-	*(buf + 0) = number + '0';
+	/* digits == 3 */
+	if (num > 99) {
+		*(buf + 0) = (num / 100) + '0';
+		*(buf + 1) = ((num / 10) % 10) + '0';
+		*(buf + 2) = (num % 10) + '0';
+		*(buf + 3) = '\0';
+		return buf + 3;
+	}
+	/* digits == 1 */
+	*(buf + 0) = num + '0';
 	*(buf + 1) = '\0';
 	return buf + 1;
 }
@@ -143,16 +148,16 @@ c_putchar(const char *filename, char c)
 }
 
 enum {
-	C_PWM_ENABLE_FULLSPEED = '0',
-	C_PWM_ENABLE_MANUAL = '1',
-	C_PWM_ENABLE_AUTO = '2',
+	PWM_ENABLE_FULLSPEED = '0',
+	PWM_ENABLE_MANUAL = '1',
+	PWM_ENABLE_AUTO = '2',
 };
 
 static void
 c_init()
 {
 	for (unsigned int i = 0; i < LEN(c_pwms_enable); ++i)
-		if (unlikely(c_putchar(c_pwms_enable[i], C_PWM_ENABLE_MANUAL)))
+		if (unlikely(c_putchar(c_pwms_enable[i], PWM_ENABLE_MANUAL)))
 			DIE_GRACEFUL();
 }
 
@@ -160,28 +165,24 @@ static void
 c_cleanup()
 {
 	for (unsigned int i = 0; i < LEN(c_pwms_enable); ++i) {
-		if (unlikely(c_puts_len(c_pwms_enable[i], S_LITERAL(SPEED_MIN_DEF)) == -1))
+		if (unlikely(c_puts_len(c_pwms_enable[i], S_LITERAL(SPEED_MIN_DEF_STR)) == -1))
 			DIE_GRACEFUL();
-		if (unlikely(c_putchar(c_pwms_enable[i], C_PWM_ENABLE_AUTO) == -1))
+		if (unlikely(c_putchar(c_pwms_enable[i], PWM_ENABLE_AUTO) == -1))
 			DIE_GRACEFUL();
 	}
 }
 
-static unsigned int
-speed_change(unsigned int speed, unsigned int last_speed)
+static ATTR_INLINE unsigned int
+c_step(unsigned int speed, unsigned int last_speed)
 {
-	/* Hysteresis: ramp down slower. */
-	if (speed < last_speed)
-		return last_speed - ((last_speed - speed) / 2);
-	else
-		return speed;
+	/* Ramp down slower, STEPDOWN_MAX per update at maximum. */
+	return (speed > last_speed - STEPDOWN_MAX) ? speed : (last_speed - STEPDOWN_MAX);
 }
 
 static void
 c_mainloop(void)
 {
-	unsigned int last_temp = 0;
-	unsigned int last_speed = 0;
+	unsigned int last_speed = MAX(table_pwm[0], STEPDOWN_MAX);
 	unsigned int speed;
 	unsigned int temp;
 	for (;;) {
@@ -189,26 +190,22 @@ c_mainloop(void)
 			temp = c_temp_get(CPU_TEMP_FILE);
 			if (unlikely(temp == (unsigned char)-1))
 				DIE_GRACEFUL();
-			/* */
 			D(fprintf(stderr, "cfan: temp:%d.\n", temp));
-			D(fprintf(stderr, "cfan: last temp:%d.\n", last_temp));
-			/* Avoid updating if temperature has not changed. */
-			if (temp == last_temp)
-				break;
-			last_temp = temp;
 			speed = table_pwm[temp];
-			/* */
 			D(fprintf(stderr, "cfan: temp:%d speed:%d.\n", temp, speed));
 			/* Avoid updating if speed has not changed. */
 			if (speed == last_speed)
 				break;
-			speed = speed_change(speed, last_speed);
+			speed = c_step(speed, last_speed);
 			last_speed = speed;
+			D(fprintf(stderr, "cfan: step_down:.%d\n", speed));
 			/* speed: 0-255 */
 			char buf[4];
-			const unsigned int buf_len = u_utoa_lt3(speed, buf) - buf;
-			D(if (atoi(buf) != (int)speed)
-			  DIE_GRACEFUL());
+			const unsigned int buf_len = u_utoa_lt3_p(speed, buf) - buf;
+#ifdef DEBUG
+			if (unlikely((int)speed != atoi(buf)))
+				DIE_GRACEFUL();
+#endif
 			for (unsigned int i = 0; i < LEN(c_pwms); ++i) {
 				if (unlikely(c_puts_len(c_pwms[i], buf, buf_len) == -1))
 					DIE_GRACEFUL();
@@ -219,7 +216,7 @@ c_mainloop(void)
 			}
 			break;
 		}
-		if (unlikely(sleep(INTERVAL)))
+		if (unlikely(sleep(INTERVAL_UPDATE)))
 			DIE_GRACEFUL();
 	}
 }

@@ -1,0 +1,8 @@
+#!/bin/sh
+BIN=cfan
+killall "$BIN"
+make clean
+CPPFLAGS=-DDEBUG=1 make
+sudo make install
+sudo $BIN
+make clean

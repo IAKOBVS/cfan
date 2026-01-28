@@ -1,0 +1,4 @@
+#!/bin/sh
+BIN=cfan
+killall "$BIN"
+sudo make install
