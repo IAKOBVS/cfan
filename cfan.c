@@ -34,7 +34,6 @@
 
 #define STEPUP_SPIKE 4
 
-static unsigned int c_speed_min;
 static unsigned int c_hot_secs;
 
 static int
@@ -131,7 +130,6 @@ enum {
 static void
 c_init()
 {
-	c_speed_min = table_pwm[0];
 	for (unsigned int i = 0; i < LEN(c_pwms_enable); ++i)
 		if (unlikely(c_putchar(c_pwms_enable[i], PWM_ENABLE_MANUAL)))
 			DIE_GRACEFUL();
