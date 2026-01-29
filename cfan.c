@@ -139,11 +139,11 @@ static void
 c_cleanup()
 {
 	for (unsigned int i = 0; i < LEN(c_pwms_enable); ++i) {
-		char buf[4];
-		const unsigned int buf_len = c_utoa_lt3_p(table_pwm[0], buf) - buf;
-		printf("Setting fan %s to %s.\n", c_pwms[i], buf);
+		char min_speed[4];
+		const unsigned int buf_len = c_utoa_lt3_p(table_pwm[0], min_speed) - min_speed;
+		printf("Setting fan %s to %s.\n", c_pwms[i], min_speed);
 		/* Set fan to minimum speed. */
-		if (unlikely(c_puts_len(c_pwms_enable[i], buf, buf_len) == -1))
+		if (unlikely(c_puts_len(c_pwms_enable[i], min_speed, buf_len) == -1))
 			DIE_GRACEFUL();
 		printf("Setting auto mode to fan %s.\n", c_pwms[i]);
 		/* Restore mode to auto. */
@@ -197,15 +197,16 @@ c_mainloop(void)
 			last_speed = speed;
 			DBG(fprintf(stderr, "Getting step: %d.\n", speed));
 			/* speed: 0-255 */
-			char buf[4];
-			const unsigned int buf_len = c_utoa_lt3_p(speed, buf) - buf;
+			char speeds[4];
+			/* Convert speed to a string to pass to sysfs. */
+			const unsigned int speeds_len = c_utoa_lt3_p(speed, speeds) - speeds;
 #ifdef DEBUG
-			if (unlikely((int)speed != atoi(buf)))
+			if (unlikely((int)speed != atoi(speeds)))
 				DIE_GRACEFUL();
 #endif
 			for (unsigned int i = 0; i < LEN(c_pwms); ++i) {
-				DBG(fprintf(stderr, "Setting speed: %s.\n", buf));
-				if (unlikely(c_fanspeed_set(c_pwms[i], buf, buf_len) == -1))
+				DBG(fprintf(stderr, "Setting speed: %s.\n", speeds));
+				if (unlikely(c_fanspeed_set(c_pwms[i], speeds, speeds_len) == -1))
 					DIE_GRACEFUL();
 			}
 			break;
