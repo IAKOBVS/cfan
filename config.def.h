@@ -1,10 +1,12 @@
 #ifndef CONFIG_H
 #	define CONFIG_H 1
 
-/* How often to update (secs) */
+/* How often to update. (secs) */
 #	define INTERVAL_UPDATE 1
 /* Maximum fan speed change per update when ramping down (0-255). */
 #	define STEPDOWN_MAX 8
+/* Amount of seconds to wait before significantly ramping up in fan speed. */
+#	define SPIKE_MAX 3
 
 /* Fan speed: 0-255
  * table_pwm[temperature] = speed */

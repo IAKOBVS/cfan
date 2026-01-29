@@ -160,7 +160,7 @@ c_step(unsigned int speed, unsigned int last_speed, unsigned int temp)
 		if (speed > last_speed - STEPDOWN_MAX)
 			/* This avoids unwanted ramping up for short spikes
 			 * as in opening a browser. */
-			if (c_hot_secs <= 3 && likely(temp < 83)) {
+			if (c_hot_secs <= SPIKE_MAX && likely(temp < 83)) {
 				++c_hot_secs;
 				return last_speed + STEPUP_SPIKE;
 			}
