@@ -178,8 +178,11 @@ c_step_up(unsigned int speed, unsigned int last_speed, unsigned int temp)
 static void
 c_mainloop(void)
 {
-	/* for c_step to work, last_speed MUST be >= STEPDOWN_MAX. */
-	unsigned int last_speed = STEPDOWN_MAX;
+	if (unlikely(STEPDOWN_MAX > table_pwm[0])) {
+		fprintf(stderr, "cfan: STEPDOWN_MAX (%d) must not be greater than the minimum fan speed (%d).\n", STEPDOWN_MAX, table_pwm[0]);
+		DIE_GRACEFUL();
+	}
+	unsigned int last_speed = table_pwm[0];
 	unsigned int speed;
 	unsigned int temp;
 	for (;;) {
