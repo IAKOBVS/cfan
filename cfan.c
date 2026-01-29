@@ -28,6 +28,7 @@
 
 #include "macros.h"
 #include "config.h"
+#include "temp.h"
 
 #include "pwm.generated.h"
 #include "cpu.generated.h"
@@ -72,18 +73,18 @@ c_utoa_lt3_p(unsigned int num, char *buf)
 }
 
 static unsigned int
-c_temp_cpu_get(const char *temp_file)
+c_temp_get(const char *temp_file)
 {
 	int fd = open(temp_file, O_RDONLY);
 	if (unlikely(fd == -1))
-		DIE_GRACEFUL(return (unsigned char)-1);
+		DIE_GRACEFUL(return (unsigned int)-1);
 	/* Milidegrees = degrees * 1000 */
 	char buf[S_LEN("100") + S_LEN("000") + S_LEN("\n")];
 	int read_sz = read(fd, buf, sizeof(buf));
 	if (unlikely(close(fd) == -1))
-		DIE_GRACEFUL(return (unsigned char)-1);
+		DIE_GRACEFUL(return (unsigned int)-1);
 	if (unlikely(read_sz == -1))
-		DIE_GRACEFUL(return (unsigned char)-1);
+		DIE_GRACEFUL(return (unsigned int)-1);
 	/* Don't read the newline. */
 	if (*(buf + read_sz - 1) == '\n')
 		--read_sz;
@@ -94,9 +95,17 @@ c_temp_cpu_get(const char *temp_file)
 }
 
 static ATTR_INLINE unsigned int
-c_temp_get()
+c_temp_max_get()
 {
-	return c_temp_cpu_get(CPU_TEMP_FILE);
+	unsigned int max = 0;
+	for (unsigned int i = 0, curr; i < LEN(c_table_temps); ++i) {
+		curr = c_temp_get(c_table_temps[i]);
+		if (curr == (unsigned int)-1)
+			DIE_GRACEFUL(return (unsigned int)-1);
+		if (curr > max)
+			max = curr;
+	}
+	return max;
 }
 
 static int
@@ -116,7 +125,7 @@ c_puts_len(const char *filename, const char *buf, unsigned int len)
 }
 
 static ATTR_INLINE int
-c_fanspeed_set(const char *fan_file, const char *buf, unsigned int len)
+c_speed_set(const char *fan_file, const char *buf, unsigned int len)
 {
 	return c_puts_len(fan_file, buf, len);
 }
@@ -146,7 +155,7 @@ c_cleanup()
 {
 	for (unsigned int i = 0; i < LEN(c_pwms_enable); ++i) {
 		char min_speed[4];
-		const unsigned int buf_len = c_utoa_lt3_p(table_pwm[0], min_speed) - min_speed;
+		const unsigned int buf_len = c_utoa_lt3_p(c_table_pwm[0], min_speed) - min_speed;
 		printf("Setting fan %s to %s.\n", c_pwms[i], min_speed);
 		/* Set fan to minimum speed. */
 		if (unlikely(c_puts_len(c_pwms_enable[i], min_speed, buf_len) == -1))
@@ -159,66 +168,78 @@ c_cleanup()
 }
 
 static ATTR_INLINE unsigned int
-c_step(unsigned int speed, unsigned int last_speed, unsigned int temp)
+c_step_need(unsigned int *speed, unsigned int speed_last, unsigned int temp)
 {
-	if (speed > last_speed) {
+	*speed = c_table_pwm[temp];
+	DBG(fprintf(stderr, "Geting speed: %d.\n", *speed));
+	/* Avoid updating if speed has not changed. */
+	return (*speed != speed_last);
+}
+
+static ATTR_INLINE unsigned int
+c_step(unsigned int speed, unsigned int *speed_last, unsigned int temp)
+{
+	if (speed > *speed_last) {
 		/* Maybe ramp up slower. */
-		if (speed > last_speed - STEPDOWN_MAX)
+		if (speed > *speed_last - STEPDOWN_MAX)
 			/* This avoids unwanted ramping up for short spikes
 			 * as in opening a browser. */
 			if (c_hot_secs <= SPIKE_MAX && likely(temp < 83)) {
 				++c_hot_secs;
-				return last_speed + STEPUP_SPIKE;
+				DBG(fprintf(stderr, "Getting step: %d.\n", speed));
+				return *speed_last + STEPUP_SPIKE;
 			}
-	} else { /* speed < last_speed */
+	} else { /* speed < *speed_last */
 		/* Ramp down slower. */
-		speed = MAX(speed, last_speed - STEPDOWN_MAX);
+		speed = MAX(speed, *speed_last - STEPDOWN_MAX);
 	}
+	*speed_last = speed;
 	c_hot_secs = 0;
+	DBG(fprintf(stderr, "Getting step: %d.\n", speed));
 	return speed;
 }
 
-static void
+static ATTR_INLINE int
+c_speeds_set(unsigned int speed)
+{
+	/* speed: 0-255 */
+	char speeds[4];
+	/* Convert speed to a string to pass to sysfs. */
+	const unsigned int speeds_len = c_utoa_lt3_p(speed, speeds) - speeds;
+#ifdef DEBUG
+	if (unlikely((int)speed != atoi(speeds)))
+		DIE_GRACEFUL(return -1);
+#endif
+	for (unsigned int i = 0; i < LEN(c_pwms); ++i) {
+		DBG(fprintf(stderr, "Setting speed: %s.\n", speeds));
+		if (unlikely(c_speed_set(c_pwms[i], speeds, speeds_len) == -1))
+			DIE_GRACEFUL(return -1);
+	}
+	return 0;
+}
+
+static int
 c_mainloop(void)
 {
 	/* Avoid underflow. */
-	if (unlikely(STEPDOWN_MAX > table_pwm[0])) {
-		fprintf(stderr, "cfan: STEPDOWN_MAX (%d) must not be greater than the minimum fan speed (%d).\n", STEPDOWN_MAX, table_pwm[0]);
+	if (unlikely(STEPDOWN_MAX > c_table_pwm[0])) {
+		fprintf(stderr, "cfan: STEPDOWN_MAX (%d) must not be greater than the minimum fan speed (%d).\n", STEPDOWN_MAX, c_table_pwm[0]);
 		DIE_GRACEFUL();
 	}
-	unsigned int last_speed = table_pwm[0];
+	unsigned int speed_last = c_table_pwm[0];
 	unsigned int speed;
 	unsigned int temp;
 	for (;;) {
-		for (;;) {
-			/* TODO: use a function table to get multiple temperatures. */
-			temp = c_temp_get();
-			if (unlikely(temp == (unsigned char)-1))
-				DIE_GRACEFUL();
-			DBG(fprintf(stderr, "Getting temp: %d.\n", temp));
-			speed = table_pwm[temp];
-			DBG(fprintf(stderr, "Geting speed: %d.\n", speed));
-			/* Avoid updating if speed has not changed. */
-			if (speed == last_speed)
-				break;
-			speed = c_step(speed, last_speed, temp);
-			last_speed = speed;
-			DBG(fprintf(stderr, "Getting step: %d.\n", speed));
-			/* speed: 0-255 */
-			char speeds[4];
-			/* Convert speed to a string to pass to sysfs. */
-			const unsigned int speeds_len = c_utoa_lt3_p(speed, speeds) - speeds;
-#ifdef DEBUG
-			if (unlikely((int)speed != atoi(speeds)))
-				DIE_GRACEFUL();
-#endif
-			for (unsigned int i = 0; i < LEN(c_pwms); ++i) {
-				DBG(fprintf(stderr, "Setting speed: %s.\n", speeds));
-				if (unlikely(c_fanspeed_set(c_pwms[i], speeds, speeds_len) == -1))
-					DIE_GRACEFUL();
-			}
-			break;
-		}
+		temp = c_temp_max_get();
+		if (temp == (unsigned int)-1)
+			DIE_GRACEFUL();
+		/* Avoid updating when not necessary. */
+		if (!c_step_need(&speed, speed_last, temp))
+			goto sleep;
+		speed = c_step(speed, &speed_last, temp);
+		if (c_speeds_set(speed) == -1)
+			DIE_GRACEFUL();
+sleep:
 		if (unlikely(sleep(INTERVAL_UPDATE)))
 			DIE_GRACEFUL();
 	}

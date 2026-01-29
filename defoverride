@@ -1,0 +1,2 @@
+#!/bin/sh
+cp config.h config.def.h
