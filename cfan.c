@@ -71,8 +71,8 @@ c_utoa_lt3_p(unsigned int num, char *buf)
 	return buf + 1;
 }
 
-static unsigned char
-c_temp_get(const char *temp_file)
+static unsigned int
+c_temp_cpu_get(const char *temp_file)
 {
 	int fd = open(temp_file, O_RDONLY);
 	if (unlikely(fd == -1))
@@ -90,7 +90,13 @@ c_temp_get(const char *temp_file)
 	/* Don't read the milidegrees. */
 	read_sz -= S_LEN("000");
 	*(buf + read_sz) = '\0';
-	return c_atoi_lt3(buf, read_sz);
+	return (unsigned int)c_atoi_lt3(buf, read_sz);
+}
+
+static ATTR_INLINE unsigned int
+c_temp_get()
+{
+	return c_temp_cpu_get(CPU_TEMP_FILE);
 }
 
 static int
@@ -185,7 +191,8 @@ c_mainloop(void)
 	unsigned int temp;
 	for (;;) {
 		for (;;) {
-			temp = c_temp_get(CPU_TEMP_FILE);
+			/* TODO: use a function table to get multiple temperatures. */
+			temp = c_temp_get();
 			if (unlikely(temp == (unsigned char)-1))
 				DIE_GRACEFUL();
 			DBG(fprintf(stderr, "Getting temp: %d.\n", temp));
