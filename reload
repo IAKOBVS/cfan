@@ -1,4 +1,5 @@
 #!/bin/sh
 BIN=cfan
-killall "$BIN"
+sudo killall "$BIN"
+sudo make clean
 sudo make install

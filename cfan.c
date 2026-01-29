@@ -32,6 +32,11 @@
 #include "pwm.generated.h"
 #include "cpu.generated.h"
 
+#define STEPUP_SPIKE 4
+
+static unsigned int c_speed_min;
+static unsigned int c_hot_secs;
+
 static int
 c_atoi_lt3(const char *buf, int len)
 {
@@ -126,6 +131,7 @@ enum {
 static void
 c_init()
 {
+	c_speed_min = table_pwm[0];
 	for (unsigned int i = 0; i < LEN(c_pwms_enable); ++i)
 		if (unlikely(c_putchar(c_pwms_enable[i], PWM_ENABLE_MANUAL)))
 			DIE_GRACEFUL();
@@ -135,18 +141,38 @@ static void
 c_cleanup()
 {
 	for (unsigned int i = 0; i < LEN(c_pwms_enable); ++i) {
-		if (unlikely(c_puts_len(c_pwms_enable[i], S_LITERAL(SPEED_MIN_DEF_STR)) == -1))
+		char buf[4];
+		const unsigned int buf_len = c_utoa_lt3_p(table_pwm[0], buf) - buf;
+		printf("Setting fan %s to %s.\n", c_pwms[i], buf);
+		/* Set fan to minimum speed. */
+		if (unlikely(c_puts_len(c_pwms_enable[i], buf, buf_len) == -1))
 			DIE_GRACEFUL();
+		printf("Setting auto mode to fan %s.\n", c_pwms[i]);
+		/* Restore mode to auto. */
 		if (unlikely(c_putchar(c_pwms_enable[i], PWM_ENABLE_AUTO) == -1))
 			DIE_GRACEFUL();
 	}
 }
 
 static ATTR_INLINE unsigned int
-c_step(unsigned int speed, unsigned int last_speed)
+c_step_up(unsigned int speed, unsigned int last_speed, unsigned int temp)
 {
-	/* Ramp down slower, STEPDOWN_MAX per update at maximum. */
-	return (speed > last_speed - STEPDOWN_MAX) ? speed : (last_speed - STEPDOWN_MAX);
+	/* Ramp up slower. */
+	if (speed > last_speed - STEPDOWN_MAX) {
+		/* This avoids unwanted ramping up for short spikes
+		 * as in opening a browser. */
+		if (c_hot_secs <= 3 && likely(temp < 83)) {
+			++c_hot_secs;
+			return last_speed + STEPUP_SPIKE;
+		} else {
+			c_hot_secs = 0;
+			return speed;
+		}
+	} else {
+		/* Ramp down slower. */
+		c_hot_secs = 0;
+		return last_speed - STEPDOWN_MAX;
+	}
 }
 
 static void
@@ -167,7 +193,7 @@ c_mainloop(void)
 			/* Avoid updating if speed has not changed. */
 			if (speed == last_speed)
 				break;
-			speed = c_step(speed, last_speed);
+			speed = c_step_up(speed, last_speed, temp);
 			last_speed = speed;
 			DBG(fprintf(stderr, "Getting step: %d.\n", speed));
 			/* speed: 0-255 */
