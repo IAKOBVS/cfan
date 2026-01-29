@@ -155,24 +155,23 @@ c_cleanup()
 }
 
 static ATTR_INLINE unsigned int
-c_step_up(unsigned int speed, unsigned int last_speed, unsigned int temp)
+c_step(unsigned int speed, unsigned int last_speed, unsigned int temp)
 {
-	/* Ramp up slower. */
-	if (speed > last_speed - STEPDOWN_MAX) {
-		/* This avoids unwanted ramping up for short spikes
-		 * as in opening a browser. */
-		if (c_hot_secs <= 3 && likely(temp < 83)) {
-			++c_hot_secs;
-			return last_speed + STEPUP_SPIKE;
-		} else {
-			c_hot_secs = 0;
-			return speed;
-		}
-	} else {
+	if (speed > last_speed) {
+		/* Maybe ramp up slower. */
+		if (speed > last_speed - STEPDOWN_MAX)
+			/* This avoids unwanted ramping up for short spikes
+			 * as in opening a browser. */
+			if (c_hot_secs <= 3 && likely(temp < 83)) {
+				++c_hot_secs;
+				return last_speed + STEPUP_SPIKE;
+			}
+	} else { /* speed < last_speed */
 		/* Ramp down slower. */
-		c_hot_secs = 0;
-		return last_speed - STEPDOWN_MAX;
+		speed = MAX(speed, last_speed - STEPDOWN_MAX);
 	}
+	c_hot_secs = 0;
+	return speed;
 }
 
 static void
@@ -196,7 +195,7 @@ c_mainloop(void)
 			/* Avoid updating if speed has not changed. */
 			if (speed == last_speed)
 				break;
-			speed = c_step_up(speed, last_speed, temp);
+			speed = c_step(speed, last_speed, temp);
 			last_speed = speed;
 			DBG(fprintf(stderr, "Getting step: %d.\n", speed));
 			/* speed: 0-255 */
