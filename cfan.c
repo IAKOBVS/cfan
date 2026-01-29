@@ -175,6 +175,7 @@ c_step(unsigned int speed, unsigned int last_speed, unsigned int temp)
 static void
 c_mainloop(void)
 {
+	/* Avoid underflow. */
 	if (unlikely(STEPDOWN_MAX > table_pwm[0])) {
 		fprintf(stderr, "cfan: STEPDOWN_MAX (%d) must not be greater than the minimum fan speed (%d).\n", STEPDOWN_MAX, table_pwm[0]);
 		DIE_GRACEFUL();
