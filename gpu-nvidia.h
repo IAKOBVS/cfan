@@ -123,9 +123,9 @@ nv_temp_gpu_get_max()
 {
 	unsigned int max = 0;
 	unsigned int temp;
+	if (unlikely(!nv_inited))
+		nv_init();
 	for (unsigned int i = 0; i < nv_device_count; ++i) {
-		if (unlikely(!nv_inited))
-			nv_init();
 		nv_ret = nv_nvmlDeviceGetTemperature(nv_device[i], NVML_TEMPERATURE_GPU, &temp);
 		if (unlikely(nv_ret != NVML_SUCCESS))
 			DIE_GRACEFUL(nv_ret);
