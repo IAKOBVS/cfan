@@ -312,14 +312,14 @@ c_mainloop(void)
 	unsigned int temp;
 	for (;;) {
 		temp = c_temp_max_get();
-		if (temp == (unsigned int)-1)
+		if (unlikely(temp == (unsigned int)-1))
 			DIE_GRACEFUL();
 		/* Avoid updating when not necessary. */
 		if (!c_step_need(&speed, speed_last, temp))
 			goto sleep;
 		/* Get next step. */
 		speed = c_step(speed, &speed_last, temp);
-		if (c_speeds_set(speed) == -1)
+		if (unlikely(c_speeds_set(speed) == -1))
 			DIE_GRACEFUL();
 sleep:
 		if (unlikely(sleep(INTERVAL_UPDATE)))
