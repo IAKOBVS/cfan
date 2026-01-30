@@ -1,8 +1,9 @@
 #!/bin/sh
+pkg_temp='coretemp'
 files=$(find /sys/devices/platform -type f -name 'name')
 for file in $files; do
-	if grep -qF 'coretemp' "$file"; then
-		echo "#define CPU_TEMP_FILE \"$file\"" | sed 's/name/temp/'
+	if grep -qF "$pkg_temp" "$file"; then
+		echo "#define CPU_TEMP_FILE \"$file\"" | sed 's/name/temp1_input/'
 		exit
 	fi
 done
