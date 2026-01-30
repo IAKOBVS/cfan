@@ -21,7 +21,6 @@
  * SOFTWARE. */
 
 #include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
 #include <assert.h>
 #include <fcntl.h>
@@ -201,7 +200,7 @@ c_cleanup()
 	setbuf(stdout, NULL);
 	for (unsigned int i = 0; i < LEN(c_table_fans_enable); ++i) {
 		char min_speed[4];
-		const unsigned int min_speed_len = (unsigned int)sprintf(min_speed, "%d", 80);
+		const unsigned int min_speed_len = (unsigned int)sprintf(min_speed, "%d", FANSPEED_DEFAULT);
 		if (unlikely((int)min_speed_len == -1))
 			DIE();
 		printf("Setting speed %s to fan %s.\n", min_speed, c_table_fans[i]);
