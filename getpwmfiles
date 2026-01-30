@@ -6,7 +6,7 @@ pwm_enable_array='static const char *c_table_fans_enable[] = {
 '
 # fanspeed_array='static const char *c_fanspeeds[] = {
 # '
-files=$(echo /sys/class/hwmon/hwmon[0-9]*/pwm[0-9]*_enable)
+files=$(find /sys/devices/platform -type f -name 'pwm[0-9]*_enable')
 if [ -z "$files" ]; then
 	echo "getpwmfiles: pwm files not found in $files"
 	echo "Example pwm.generated.h:"
@@ -35,4 +35,4 @@ pwm_array="$pwm_array};"
 pwm_enable_array="$pwm_enable_array};"
 # fanspeed_array="$fanspeed_array};"
 printf "%s\n%s\n%s\n" "$pwm_array" "$pwm_enable_array"
-# "$fanspeed_array"
+# printf "%s\n%s\n%s\n" "$pwm_array" "$pwm_enable_array" "$fanspeed_array"

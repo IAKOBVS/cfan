@@ -4,7 +4,7 @@ PREFIX = /usr/local
 
 all: $(PROG)
 
-cfan: config.h fans.generated.h cpu.generated.h $(PROG).c
+cfan: config.h cpu.generated.h fans.generated.h $(PROG).c
 	$(CC) -o $@ $(PROG).c $(CFLAGS) $(CPPFLAGS) $(LDFLAGS)
 
 config.h:
@@ -22,7 +22,7 @@ install: $(PROG)
 cpu.generated.h:
 	./getcpufile > $@
 
-pwm.generated.h:
+fans.generated.h:
 	./getpwmfiles > $@
 
 uninstall:

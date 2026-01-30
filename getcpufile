@@ -1,12 +1,12 @@
 #!/bin/sh
-files=$(echo /sys/class/thermal/thermal_zone[0-9]*/type)
+files=$(find /sys/devices/platform -type f -name 'name')
 for file in $files; do
-	if grep -qF 'x86_pkg_temp' "$file"; then
-		echo "#define CPU_TEMP_FILE \"$file\"" | sed 's/type/temp/'
+	if grep -qF 'coretemp' "$file"; then
+		echo "#define CPU_TEMP_FILE \"$file\"" | sed 's/name/temp/'
 		exit
 	fi
 done
-echo "getcpufile: x86_pkg_temp not found. in $files!"
+echo "getcpufile: coretemp not found. in $files!"
 echo 'Need to manually add CPU_TEMP_FILE macro to cpu.generated.h.'
 echo 'Example cpu.generated.h:'
 echo '#define CPU_TEMP_FILE "/path/to/cpu_temp'
