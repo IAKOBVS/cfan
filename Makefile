@@ -4,7 +4,7 @@ PREFIX = /usr/local
 
 all: $(PROG)
 
-cfan: config.h pwm.generated.h cpu.generated.h
+cfan: config.h fans.generated.h cpu.generated.h $(PROG).c
 	$(CC) -o $@ $(PROG).c $(CFLAGS) $(CPPFLAGS) $(LDFLAGS)
 
 config.h:

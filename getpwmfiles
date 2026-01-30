@@ -1,9 +1,11 @@
 #!/bin/sh
-pwm_file=pwm.generated.h
-pwm_array='static const char *c_pwms[] = {
+pwm_file=fans.generated.h
+pwm_array='static const char *c_table_fans[] = {
 '
-pwm_enable_array='static const char *c_pwms_enable[] = {
+pwm_enable_array='static const char *c_table_fans_enable[] = {
 '
+# fanspeed_array='static const char *c_fanspeeds[] = {
+# '
 files=$(echo /sys/class/hwmon/hwmon[0-9]*/pwm[0-9]*_enable)
 if [ -z "$files" ]; then
 	echo "getpwmfiles: pwm files not found in $files"
@@ -20,12 +22,17 @@ if [ -z "$files" ]; then
 fi
 for file in $files; do
 	pwm_file=$(echo $file | sed 's/_enable//')
+	fanspeed_file=$(echo $file | sed 's/pwm\([0-9]*\)_enable/fan\1_input/')
 	pwm_enable_file=$file
 	pwm_array="$pwm_array	\"$pwm_file\",
 "
 	pwm_enable_array="$pwm_enable_array	\"$pwm_enable_file\",
 "
+	# fanspeed_array="$fanspeed_array	\"$fanspeed_file\",
+	# "
 done
 pwm_array="$pwm_array};"
 pwm_enable_array="$pwm_enable_array};"
-printf "%s\n%s\n" "$pwm_array" "$pwm_enable_array"
+# fanspeed_array="$fanspeed_array};"
+printf "%s\n%s\n%s\n" "$pwm_array" "$pwm_enable_array"
+# "$fanspeed_array"

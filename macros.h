@@ -28,12 +28,21 @@
 #		define ASSERT_FUNC __func__
 #	endif
 
+#	define DIE(x)                                                                  \
+		do {                                                                    \
+			if (errno)                                                      \
+				perror("");                                             \
+			fprintf(stderr, "%s:%d:%s\n", __FILE__, __LINE__, ASSERT_FUNC); \
+			abort();                                                        \
+			x;                                                              \
+		} while (0)
+
 #	define DIE_GRACEFUL(x)                                                         \
 		do {                                                                    \
 			if (errno)                                                      \
 				perror("");                                             \
 			fprintf(stderr, "%s:%d:%s\n", __FILE__, __LINE__, ASSERT_FUNC); \
-			exit(EXIT_FAILURE);                                             \
+			c_exit(EXIT_FAILURE);                                           \
 			x;                                                              \
 		} while (0)
 

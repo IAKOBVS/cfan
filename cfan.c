@@ -21,31 +21,36 @@
  * SOFTWARE. */
 
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <assert.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include "macros.h"
 #include "config.h"
 #include "temp.h"
 
-#include "pwm.generated.h"
+#include "fans.generated.h"
 #include "cpu.generated.h"
 
 #define STEPUP_SPIKE 4
 
 static unsigned int c_hot_secs;
 
-static int
-c_atoi_lt3(const char *buf, int len)
+void
+c_exit(int status);
+
+static unsigned int
+c_atou_lt3(const char *buf, int len)
 {
 	if (len == 2)
-		return (*(buf + 0) - '0') * 10 + (*(buf + 1) - '0');
+		return (unsigned int)((*(buf + 0) - '0') * 10 + (*(buf + 1) - '0'));
 	if (len == 3)
-		return (*(buf + 0) - '0') * 100 + (*(buf + 1) - '0') * 10 + (*(buf + 2) - '0');
+		return (unsigned int)((*(buf + 0) - '0') * 100 + (*(buf + 1) - '0') * 10 + (*(buf + 2) - '0'));
 	/* len == 1 */
-	return *(buf + 0) - '0';
+	return (unsigned int)(*(buf + 0) - '0');
 }
 
 static char *
@@ -77,21 +82,21 @@ c_temp_get(const char *temp_file)
 {
 	int fd = open(temp_file, O_RDONLY);
 	if (unlikely(fd == -1))
-		DIE_GRACEFUL(return (unsigned int)-1);
+		return (unsigned int)-1;
 	/* Milidegrees = degrees * 1000 */
 	char buf[S_LEN("100") + S_LEN("000") + S_LEN("\n")];
 	int read_sz = read(fd, buf, sizeof(buf));
 	if (unlikely(close(fd) == -1))
-		DIE_GRACEFUL(return (unsigned int)-1);
+		return (unsigned int)-1;
 	if (unlikely(read_sz == -1))
-		DIE_GRACEFUL(return (unsigned int)-1);
+		return (unsigned int)-1;
 	/* Don't read the newline. */
 	if (*(buf + read_sz - 1) == '\n')
 		--read_sz;
 	/* Don't read the milidegrees. */
 	read_sz -= S_LEN("000");
 	*(buf + read_sz) = '\0';
-	return (unsigned int)c_atoi_lt3(buf, read_sz);
+	return c_atou_lt3(buf, read_sz);
 }
 
 static ATTR_INLINE unsigned int
@@ -108,19 +113,67 @@ c_temp_max_get()
 	return max;
 }
 
+
+static int
+c_gets_len(const char *filename, char *dst, unsigned int *dst_len)
+{
+	int fd = open(filename, O_RDONLY);
+	if (unlikely(fd == -1))
+		return -1;
+	int read_sz = read(fd, dst, *dst_len);
+	if (unlikely(read_sz == -1)) {
+		close(fd);
+		return -1;
+	}
+	/* Don't read newline. */
+	if (*(dst + read_sz - 1) == '\n')
+		--read_sz;
+	*(dst + read_sz) = '\0';
+	*dst_len = (unsigned int)read_sz;
+	if (unlikely(close(fd) == -1))
+		return -1;
+	return 0;
+}
+
+static unsigned int
+c_fanspeed_get(const char *filename)
+{
+	char fanspeed[4];
+	unsigned int fanspeed_len = sizeof(fanspeed);
+	if (unlikely(c_gets_len(filename, fanspeed, &fanspeed_len)) == -1)
+		return (unsigned int)-1;
+	return c_atou_lt3(fanspeed, (int)fanspeed_len);
+}
+
+static unsigned int
+c_fanspeed_max_get(void)
+{
+	unsigned int max = 0;
+	unsigned int curr;
+	for (unsigned int i = 0; i < LEN(c_table_fans); ++i) {
+		curr = c_fanspeed_get(c_table_fans[i]);
+		if (unlikely(curr == (unsigned int)-1))
+			DIE_GRACEFUL();
+		DBG(fprintf(stderr, "Getting fanspeed %d for fan %s.\n", curr, c_table_fans[i]));
+		if (curr > max)
+			max = curr;
+	}
+	return max;
+}
+
 static int
 c_puts_len(const char *filename, const char *buf, unsigned int len)
 {
 	int fd = open(filename, O_WRONLY);
 	if (unlikely(fd == -1))
-		DIE_GRACEFUL(return -1);
+		return -1;
 	int write_sz = write(fd, buf, len);
 	if (unlikely(write_sz == -1)) {
 		close(fd);
-		DIE_GRACEFUL(return -1);
+		return -1;
 	}
 	if (unlikely(close(fd) == -1))
-		DIE_GRACEFUL(return -1);
+		return -1;
 	return 0;
 }
 
@@ -143,34 +196,62 @@ enum {
 };
 
 static void
-c_init()
+c_cleanup()
 {
-	for (unsigned int i = 0; i < LEN(c_pwms_enable); ++i)
-		if (unlikely(c_putchar(c_pwms_enable[i], PWM_ENABLE_MANUAL)))
+	setbuf(stdout, NULL);
+	for (unsigned int i = 0; i < LEN(c_table_fans_enable); ++i) {
+		char min_speed[4];
+		sprintf(min_speed, "%d", 80);
+		const unsigned int min_speed_len = strlen(min_speed);
+		printf("Setting speed %s to fan %s.\n", min_speed, c_table_fans[i]);
+		/* Set fan to minimum speed. */
+		if (unlikely(c_puts_len(c_table_fans[i], min_speed, min_speed_len) == -1))
+			DIE();
+#if 0
+		printf("Setting auto mode to fan %s.\n", c_table_fans[i]);
+		/* Restore mode to auto. */
+		if (unlikely(c_putchar(c_table_fans_enable[i], PWM_ENABLE_AUTO) == -1))
 			DIE_GRACEFUL();
+#endif
+	}
+}
+
+void
+c_exit(int status)
+{
+	c_cleanup();
+	_Exit(status);
 }
 
 static void
-c_cleanup()
+c_sig_handler(int signum)
 {
-	for (unsigned int i = 0; i < LEN(c_pwms_enable); ++i) {
-		char min_speed[4];
-		const unsigned int buf_len = c_utoa_lt3_p(c_table_pwm[0], min_speed) - min_speed;
-		printf("Setting fan %s to %s.\n", c_pwms[i], min_speed);
-		/* Set fan to minimum speed. */
-		if (unlikely(c_puts_len(c_pwms_enable[i], min_speed, buf_len) == -1))
+	c_exit(EXIT_SUCCESS);
+	(void)signum;
+}
+
+static void
+c_sig_setup()
+{
+	if (unlikely(signal(SIGTERM, c_sig_handler) == SIG_ERR))
+		DIE();
+	if (unlikely(signal(SIGINT, c_sig_handler) == SIG_ERR))
+		DIE();
+}
+
+static void
+c_init()
+{
+	c_sig_setup();
+	for (unsigned int i = 0; i < LEN(c_table_fans_enable); ++i)
+		if (unlikely(c_putchar(c_table_fans_enable[i], PWM_ENABLE_MANUAL)))
 			DIE_GRACEFUL();
-		printf("Setting auto mode to fan %s.\n", c_pwms[i]);
-		/* Restore mode to auto. */
-		if (unlikely(c_putchar(c_pwms_enable[i], PWM_ENABLE_AUTO) == -1))
-			DIE_GRACEFUL();
-	}
 }
 
 static ATTR_INLINE unsigned int
 c_step_need(unsigned int *speed, unsigned int speed_last, unsigned int temp)
 {
-	*speed = c_table_pwm[temp];
+	*speed = c_table_temptospeed[temp];
 	DBG(fprintf(stderr, "Geting speed: %d.\n", *speed));
 	/* Avoid updating if speed has not changed. */
 	return (*speed != speed_last);
@@ -210,23 +291,23 @@ c_speeds_set(unsigned int speed)
 	if (unlikely((int)speed != atoi(speeds)))
 		DIE_GRACEFUL(return -1);
 #endif
-	for (unsigned int i = 0; i < LEN(c_pwms); ++i) {
-		DBG(fprintf(stderr, "Setting speed: %s.\n", speeds));
-		if (unlikely(c_speed_set(c_pwms[i], speeds, speeds_len) == -1))
+	for (unsigned int i = 0; i < LEN(c_table_fans); ++i) {
+		DBG(fprintf(stderr, "Setting speed: %s to fan %s.\n", speeds, c_table_fans[i]));
+		if (unlikely(c_speed_set(c_table_fans[i], speeds, speeds_len) == -1))
 			DIE_GRACEFUL(return -1);
 	}
 	return 0;
 }
 
-static int
+static void
 c_mainloop(void)
 {
 	/* Avoid underflow. */
-	if (unlikely(STEPDOWN_MAX > c_table_pwm[0])) {
-		fprintf(stderr, "cfan: STEPDOWN_MAX (%d) must not be greater than the minimum fan speed (%d).\n", STEPDOWN_MAX, c_table_pwm[0]);
+	if (unlikely(STEPDOWN_MAX > c_table_temptospeed[0])) {
+		fprintf(stderr, "cfan: STEPDOWN_MAX (%d) must not be greater than the minimum fan speed (%d).\n", STEPDOWN_MAX, c_table_temptospeed[0]);
 		DIE_GRACEFUL();
 	}
-	unsigned int speed_last = c_table_pwm[0];
+	unsigned int speed_last = c_fanspeed_max_get();
 	unsigned int speed;
 	unsigned int temp;
 	for (;;) {
@@ -236,6 +317,7 @@ c_mainloop(void)
 		/* Avoid updating when not necessary. */
 		if (!c_step_need(&speed, speed_last, temp))
 			goto sleep;
+		/* Get next step. */
 		speed = c_step(speed, &speed_last, temp);
 		if (c_speeds_set(speed) == -1)
 			DIE_GRACEFUL();
@@ -248,7 +330,6 @@ sleep:
 int
 main(void)
 {
-	atexit(c_cleanup);
 	c_init();
 	c_mainloop();
 }

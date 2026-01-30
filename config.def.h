@@ -9,8 +9,8 @@
 #	define SPIKE_MAX 3
 
 /* Fan speed: 0-255
- * c_table_pwm[temperature] = speed */
-static const unsigned char c_table_pwm[] = {
+ * c_table_speedfromtemp[temperature] = speed */
+static const unsigned char c_table_temptospeed[] = {
 	/* [0] = */ 50,
 	/* [1] = */ 50,
 	/* [2] = */ 50,

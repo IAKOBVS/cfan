@@ -33,6 +33,23 @@
 #include "macros.h"
 #include "config.h"
 
+#undef DIE
+#undef DIE_GRACEFUL
+
+#define DIE(nv_ret)                                                             \
+	do {                                                                    \
+		fprintf(stderr, "%s:%d:%s\n", __FILE__, __LINE__, ASSERT_FUNC); \
+		if (nv_ret)                                                     \
+			fprintf(stderr, "cfan: %s\n", nvmlErrorString(nv_ret)); \
+		_Exit(EXIT_FAILURE);                                            \
+	} while (0)
+
+#define DIE_GRACEFUL(nv_ret)                                                    \
+	do {                                                                    \
+		fprintf(stderr, "%s:%d:%s\n", __FILE__, __LINE__, ASSERT_FUNC); \
+		nv_exit(nv_ret);                                                \
+	} while (0)
+
 /* May not work for older versions of CUDA, in which case, comment it out. */
 #define USE_NVML_DEVICEGETTEMPERATUREV 1
 
@@ -71,30 +88,31 @@ nv_cleanup()
 }
 
 static void
-nv_die(nvmlReturn_t ret)
+nv_exit(nvmlReturn_t ret)
 {
 	if (errno)
 		perror("");
 	fprintf(stderr, "nvspeed: %s\n", nvmlErrorString(ret));
 	nv_cleanup();
+	_Exit(ret == NVML_SUCCESS ? EXIT_SUCCESS : EXIT_FAILURE);
 }
 
 static nv_ret_ty
 nv_init()
 {
 	nv_ret = nvmlInit();
-	if (nv_ret != NVML_SUCCESS)
+	if (unlikely(nv_ret != NVML_SUCCESS))
 		DIE_GRACEFUL(nv_ret);
 	nv_inited = 1;
 	nv_ret = nvmlDeviceGetCount(&nv_device_count);
-	if (nv_ret != NVML_SUCCESS)
+	if (unlikely(nv_ret != NVML_SUCCESS))
 		DIE_GRACEFUL(nv_ret);
 	nv_device = (nvmlDevice_t *)calloc(nv_device_count, sizeof(nvmlDevice_t));
-	if (nv_device == NULL)
+	if (unlikely(nv_device == NULL))
 		DIE_GRACEFUL(nv_ret);
 	for (unsigned int i = 0; i < nv_device_count; ++i) {
 		nv_ret = nvmlDeviceGetHandleByIndex(i, nv_device + i);
-		if (nv_ret != NVML_SUCCESS)
+		if (unlikely(nv_ret != NVML_SUCCESS))
 			DIE_GRACEFUL(nv_ret);
 	}
 	return NV_RET_SUCC;
@@ -109,7 +127,7 @@ nv_temp_gpu_get_max()
 		if (unlikely(!nv_inited))
 			nv_init();
 		nv_ret = nv_nvmlDeviceGetTemperature(nv_device[i], NVML_TEMPERATURE_GPU, &temp);
-		if (nv_ret != NVML_SUCCESS)
+		if (unlikely(nv_ret != NVML_SUCCESS))
 			DIE_GRACEFUL(nv_ret);
 		if (temp < max)
 			max = temp;
