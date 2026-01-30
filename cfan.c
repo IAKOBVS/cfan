@@ -201,8 +201,9 @@ c_cleanup()
 	setbuf(stdout, NULL);
 	for (unsigned int i = 0; i < LEN(c_table_fans_enable); ++i) {
 		char min_speed[4];
-		sprintf(min_speed, "%d", 80);
-		const unsigned int min_speed_len = strlen(min_speed);
+		const unsigned int min_speed_len = (unsigned int)sprintf(min_speed, "%d", 80);
+		if (unlikely((int)min_speed_len == -1))
+			DIE();
 		printf("Setting speed %s to fan %s.\n", min_speed, c_table_fans[i]);
 		/* Set fan to minimum speed. */
 		if (unlikely(c_puts_len(c_table_fans[i], min_speed, min_speed_len) == -1))
