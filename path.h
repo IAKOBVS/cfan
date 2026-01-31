@@ -45,22 +45,22 @@
  * Example pattern: hwmon/hwmon and thermal/thermal_zone
  * Example pattern_glob: hwmon/hwmon[0-9]* and thermal/thermal_zone[0-9]* */
 static char *
-path_sysfs_resolve(const char **filename, const char *pattern, const char *pattern_glob)
+path_sysfs_resolve(const char *filename, const char *pattern, const char *pattern_glob)
 {
-	if (access(*filename, F_OK) == 0)
-		return (char *)*filename;
+	if (access(filename, F_OK) == 0)
+		return (char *)filename;
 	const char *platform_prefix = "/sys/devices/platform/";
 	/* "hwmon/hwmon" */
-	if (strstr(*filename, pattern)
-	    && strstr(*filename, platform_prefix)) {
+	if (strstr(filename, pattern)
+	    && strstr(filename, platform_prefix)) {
 		char path[PATH_MAX];
 		char cwd_orig[PATH_MAX];
-		if (strstr(*filename, platform_prefix)) {
+		if (strstr(filename, platform_prefix)) {
 			getcwd(cwd_orig, sizeof(cwd_orig));
 			if (unlikely(chdir(platform_prefix) == -1))
 				DIE();
 			getcwd(path, sizeof(path));
-			const char *p = *filename + strlen(platform_prefix);
+			const char *p = filename + strlen(platform_prefix);
 			char platform[256];
 			char *platform_e = platform;
 			while (*p != '/' && *p != '\0')
@@ -73,7 +73,7 @@ path_sysfs_resolve(const char **filename, const char *pattern, const char *patte
 			int ret = glob(pattern_glob, 0, NULL, &g_dir);
 			/* Match */
 			if (ret == 0) {
-				const char *label = strrchr(*filename, '/');
+				const char *label = strrchr(filename, '/');
 				if (label) {
 					++label;
 					for (unsigned int i = 0; i < g_dir.gl_pathc; ++i) {
