@@ -3,10 +3,12 @@
 # NVML (uncomment to disable)
 LIB_CUDA = /opt/cuda/lib64
 LDFLAGS_CUDA = -L$(LIB_CUDA) -lnvidia-ml
-REQ_CUDA = gpu.generated.h
+REQ_CUDA = gpu-nvidia.h
 
 LDFLAGS += $(LDFLAGS_CUDA)
 REQ += $(REQ_CUDA)
+
+REQ += config.h cpu.generated.h table-fans.generated.h table-temp.h
 
 CFLAGS = -O2 -march=native -fanalyzer -Wno-unknown-warning-option -Warray-bounds -Wnull-dereference -Wformat -Wunused -Wwrite-strings
 PROG = cfan
@@ -14,11 +16,14 @@ PREFIX = /usr/local
 
 all: $(PROG)
 
-cfan: config.h cpu.generated.h table-fans.generated.h $(PROG).c $(REQ)
+cfan: $(PROG).c $(REQ)
 	$(CC) -o $@ $(PROG).c $(CFLAGS) $(CPPFLAGS) $(LDFLAGS)
 
 config.h:
 	cp config.def.h $@
+
+table-temp.h:
+	cp table-temp.def.h $@
 
 clean:
 	rm -f $(PROG)
