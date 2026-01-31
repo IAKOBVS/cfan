@@ -1,6 +1,7 @@
 # User files
 cfan
 config.h
+table-temp.h
 *.generated.h
 
 # Prerequisites
