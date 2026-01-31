@@ -80,7 +80,7 @@ path_sysfs_resolve(const char *filename)
 	if (ret == 0) {
 		if (access(g.gl_pathv[0], F_OK) == -1)
 			return NULL;
-		len += strlen(g.gl_pathv[0] + len - LEN(pat));
+		len += strlen(g.gl_pathv[0] + len - S_LEN(pat));
 		char *tmp = (char *)malloc((size_t)len + 1);
 		if (unlikely(tmp == NULL))
 			return NULL;
