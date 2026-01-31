@@ -7,7 +7,7 @@ static const char *c_table_temps[] = {
 	/*
 	 * Temperature files from sysfs MUST start with /sys/devices/platform/,
 	 * not /sys/class/, to allow the program to find the correct file
-	 * across reboots. These files will then be passed to sysfs_path_resolve
+	 * across reboots. These files will then be passed to path_sysfs_resolve
 	 * which finds the actual file.
          *
 	 * For example:

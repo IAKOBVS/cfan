@@ -269,7 +269,7 @@ c_init()
 			} else {
 				continue;
 			}
-			char *p = sysfs_path_resolve(&tables[i].data[j], pattern, pattern_glob);
+			char *p = path_sysfs_resolve(&tables[i].data[j], pattern, pattern_glob);
 			if (unlikely(p == NULL))
 				DIE();
 			if (p != tables[i].data[j]) {

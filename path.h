@@ -45,7 +45,7 @@
  * Example pattern: hwmon/hwmon and thermal/thermal_zone
  * Example pattern_glob: hwmon/hwmon[0-9]* and thermal/thermal_zone[0-9]* */
 static char *
-sysfs_path_resolve(const char **filename, const char *pattern, const char *pattern_glob)
+path_sysfs_resolve(const char **filename, const char *pattern, const char *pattern_glob)
 {
 	if (access(*filename, F_OK) == 0)
 		return (char *)*filename;
