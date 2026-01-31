@@ -241,9 +241,8 @@ c_sig_setup()
 }
 
 static void
-c_init()
+c_paths_sysfs_resolve()
 {
-	c_sig_setup();
 	typedef struct {
 		const char **data;
 		const unsigned int len;
@@ -274,15 +273,29 @@ c_init()
 				DIE();
 			if (p != tables[i].data[j]) {
 				DBG(fprintf(stderr, "%s doesn't exist, resolved to %s (which is malloc'd).\n", tables[i].data[j], p));
+				/* Set new path. */
 				tables[i].data[j] = p;
 			} else {
 				DBG(fprintf(stderr, "%s exists.\n", p));
 			}
 		}
 	}
+}
+
+static void
+c_fans_enable()
+{
 	for (unsigned int i = 0; i < LEN(c_table_fans_enable); ++i)
 		if (unlikely(c_putchar(c_table_fans_enable[i], PWM_ENABLE_MANUAL)))
 			DIE_GRACEFUL();
+}
+
+static void
+c_init()
+{
+	c_sig_setup();
+	c_paths_sysfs_resolve();
+	c_fans_enable();
 }
 
 static ATTR_INLINE unsigned int
