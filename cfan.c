@@ -154,7 +154,7 @@ c_fanspeed_max_get(void)
 		curr = c_fanspeed_get(c_table_fans[i]);
 		if (unlikely(curr == (unsigned int)-1))
 			DIE_GRACEFUL();
-		DBG(fprintf(stderr, "Getting fanspeed %d for fan %s.\n", curr, c_table_fans[i]));
+		DBG(fprintf(stderr, "%s:%d:%s: getting fanspeed %d for fan %s.\n", __FILE__, __LINE__, ASSERT_FUNC, curr, c_table_fans[i]));
 		if (curr > max)
 			max = curr;
 	}
@@ -257,26 +257,15 @@ c_paths_sysfs_resolve()
 	 * the real file, given that the number may change between reboots. */
 	for (unsigned int i = 0; i < LEN(tables); ++i) {
 		for (unsigned int j = 0; j < tables[i].len; ++j) {
-			const char *pattern;
-			const char *pattern_glob;
-			if (strstr(tables[i].data[j], "hwmon/hwmon")) {
-				pattern = "hwmon/hwmon";
-				pattern_glob = "hwmon/hwmon[0-9]*";
-			} else if (strstr(tables[i].data[j], "thermal/thermal_zone")) {
-				pattern = "thermal/thermal_zone";
-				pattern_glob = "thermal/thermal_zone[0-9]*";
-			} else {
-				continue;
-			}
-			char *p = path_sysfs_resolve(tables[i].data[j], pattern, pattern_glob);
+			char *p = path_sysfs_resolve(tables[i].data[j]);
 			if (unlikely(p == NULL))
 				DIE();
 			if (p != tables[i].data[j]) {
-				DBG(fprintf(stderr, "%s doesn't exist, resolved to %s (which is malloc'd).\n", tables[i].data[j], p));
+				DBG(fprintf(stderr, "%s:%d:%s: %s doesn't exist, resolved to %s (which is malloc'd).\n", __FILE__, __LINE__, ASSERT_FUNC, tables[i].data[j], p));
 				/* Set new path. */
 				tables[i].data[j] = p;
 			} else {
-				DBG(fprintf(stderr, "%s exists.\n", p));
+				DBG(fprintf(stderr, "%s:%d:%s: %s exists.\n",  __FILE__, __LINE__, ASSERT_FUNC, p));
 			}
 		}
 	}
@@ -302,7 +291,7 @@ static ATTR_INLINE unsigned int
 c_step_need(unsigned int *speed, unsigned int speed_last, unsigned int temp)
 {
 	*speed = c_table_temptospeed[temp];
-	DBG(fprintf(stderr, "Geting speed: %d.\n", *speed));
+	DBG(fprintf(stderr, "%s:%d:%s: geting speed: %d.\n",  __FILE__, __LINE__, ASSERT_FUNC, *speed));
 	/* Avoid updating if speed has not changed. */
 	return (*speed != speed_last);
 }
@@ -317,7 +306,7 @@ c_step(unsigned int speed, unsigned int *speed_last, unsigned int temp)
 			 * as in opening a browser. */
 			if (c_hot_secs <= SPIKE_MAX && likely(temp < 83)) {
 				++c_hot_secs;
-				DBG(fprintf(stderr, "Getting step: %d.\n", speed));
+				DBG(fprintf(stderr, "%s:%d:%s: getting step: %d.\n",  __FILE__, __LINE__, ASSERT_FUNC, speed));
 				return *speed_last + STEPUP_SPIKE;
 			}
 	} else { /* speed < *speed_last */
@@ -326,7 +315,7 @@ c_step(unsigned int speed, unsigned int *speed_last, unsigned int temp)
 	}
 	*speed_last = speed;
 	c_hot_secs = 0;
-	DBG(fprintf(stderr, "Getting step: %d.\n", speed));
+	DBG(fprintf(stderr, "%s:%d:%s: getting step: %d.\n",  __FILE__, __LINE__, ASSERT_FUNC, speed));
 	return speed;
 }
 
@@ -342,7 +331,7 @@ c_speeds_set(unsigned int speed)
 		DIE_GRACEFUL(return -1);
 #endif
 	for (unsigned int i = 0; i < LEN(c_table_fans); ++i) {
-		DBG(fprintf(stderr, "Setting speed: %s to fan %s.\n", speeds, c_table_fans[i]));
+		DBG(fprintf(stderr, "%s:%d:%s: setting speed: %s to fan %s.\n",  __FILE__, __LINE__, ASSERT_FUNC, speeds, c_table_fans[i]));
 		if (unlikely(c_speed_set(c_table_fans[i], speeds, speeds_len) == -1))
 			DIE_GRACEFUL(return -1);
 	}
