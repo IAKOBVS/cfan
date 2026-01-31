@@ -1,6 +1,10 @@
 #ifndef CONFIG_H
 #	define CONFIG_H 1
 
+/* Monitor Nvidia GPU with NVML. (Uncomment to enable)
+ * For open-Source drivers, where you can use monitor temperature through
+ * sysfs, place the path to the temperature file in table-temp.h. */
+/* #	define USE_CUDA 1 */
 /* How often to update. (secs) */
 #	define INTERVAL_UPDATE 1
 /* Maximum fan speed change per update when ramping down (0-255). */
@@ -9,6 +13,9 @@
 #	define SPIKE_MAX 3
 /* Set speed to this value on exit. */
 #	define FANSPEED_DEFAULT 60
+/* Set temperature to allow fans to instantly ramp up signifcantly. */
+#	define SPIKE_TEMP_MAX 83
+
 
 /* Fan speed: 0-255
  * c_table_speedfromtemp[temperature] = speed */

@@ -20,38 +20,35 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE. */
 
-#define NVML_HEADER "/opt/cuda/include/nvml.h"
-#include NVML_HEADER
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <assert.h>
-#include <time.h>
-#include <errno.h>
-
-#include "macros.h"
 #include "config.h"
 
-#undef DIE
-#undef DIE_GRACEFUL
+#ifdef USE_CUDA
 
-#define DIE(nv_ret)                                                             \
-	do {                                                                    \
-		fprintf(stderr, "%s:%d:%s\n", __FILE__, __LINE__, ASSERT_FUNC); \
-		if (nv_ret)                                                     \
-			fprintf(stderr, "cfan: %s\n", nvmlErrorString(nv_ret)); \
-		_Exit(EXIT_FAILURE);                                            \
-	} while (0)
+#	ifndef GPU_NVIDIA_H
+#		define GPU_NVIDIA_H 1
 
-#define DIE_GRACEFUL(nv_ret)                                                    \
-	do {                                                                    \
-		fprintf(stderr, "%s:%d:%s\n", __FILE__, __LINE__, ASSERT_FUNC); \
-		nv_exit(nv_ret);                                                \
-	} while (0)
+#		define NVML_HEADER "/opt/cuda/include/nvml.h"
+#		include NVML_HEADER
+
+#		include <stdio.h>
+#		include <stdlib.h>
+#		include <unistd.h>
+#		include <assert.h>
+#		include <time.h>
+#		include <errno.h>
+
+#		include "cfan.h"
+#		include "macros.h"
+
+#		define NV_DIE_GRACEFUL(nv_ret)                                                 \
+			do {                                                                    \
+				if (nv_ret)                                                     \
+					fprintf(stderr, "cfan: %s\n", nvmlErrorString(nv_ret)); \
+				c_exit(EXIT_FAILURE);                                           \
+			} while (0)
 
 /* May not work for older versions of CUDA, in which case, comment it out. */
-#define USE_NVML_DEVICEGETTEMPERATUREV 1
+#		define USE_NVML_DEVICEGETTEMPERATUREV 1
 
 typedef enum {
 	NV_RET_SUCC = 0,
@@ -61,16 +58,16 @@ typedef enum {
 static nvmlReturn_t
 nv_nvmlDeviceGetTemperature(nvmlDevice_t device, nvmlTemperatureSensors_t sensorType, unsigned int *temp)
 {
-#if USE_NVML_DEVICEGETTEMPERATUREV
+#		if USE_NVML_DEVICEGETTEMPERATUREV
 	nvmlTemperature_t tmp;
 	tmp.sensorType = sensorType;
 	tmp.version = nvmlTemperature_v1;
 	const nvmlReturn_t ret = nvmlDeviceGetTemperatureV(device, &tmp);
 	*temp = (unsigned int)tmp.temperature;
 	return ret;
-#else
+#		else
 	return nvmlDeviceGetTemperature(device, sensorType, temp);
-#endif
+#		endif
 }
 
 /* Global variables */
@@ -97,25 +94,24 @@ nv_exit(nvmlReturn_t ret)
 	_Exit(ret == NVML_SUCCESS ? EXIT_SUCCESS : EXIT_FAILURE);
 }
 
-static nv_ret_ty
+static void
 nv_init()
 {
 	nv_ret = nvmlInit();
 	if (unlikely(nv_ret != NVML_SUCCESS))
-		DIE_GRACEFUL(nv_ret);
+		NV_DIE_GRACEFUL(nv_ret);
 	nv_inited = 1;
 	nv_ret = nvmlDeviceGetCount(&nv_device_count);
 	if (unlikely(nv_ret != NVML_SUCCESS))
-		DIE_GRACEFUL(nv_ret);
+		NV_DIE_GRACEFUL(nv_ret);
 	nv_device = (nvmlDevice_t *)calloc(nv_device_count, sizeof(nvmlDevice_t));
 	if (unlikely(nv_device == NULL))
-		DIE_GRACEFUL(nv_ret);
+		NV_DIE_GRACEFUL(nv_ret);
 	for (unsigned int i = 0; i < nv_device_count; ++i) {
 		nv_ret = nvmlDeviceGetHandleByIndex(i, nv_device + i);
 		if (unlikely(nv_ret != NVML_SUCCESS))
-			DIE_GRACEFUL(nv_ret);
+			NV_DIE_GRACEFUL(nv_ret);
 	}
-	return NV_RET_SUCC;
 }
 
 static unsigned int
@@ -123,14 +119,16 @@ nv_temp_gpu_get_max()
 {
 	unsigned int max = 0;
 	unsigned int temp;
-	if (unlikely(!nv_inited))
-		nv_init();
 	for (unsigned int i = 0; i < nv_device_count; ++i) {
 		nv_ret = nv_nvmlDeviceGetTemperature(nv_device[i], NVML_TEMPERATURE_GPU, &temp);
 		if (unlikely(nv_ret != NVML_SUCCESS))
-			DIE_GRACEFUL(nv_ret);
-		if (temp < max)
+			NV_DIE_GRACEFUL(nv_ret);
+		if (temp > max)
 			max = temp;
 	}
 	return max;
 }
+
+#	endif /* GPU_NVIDIA_H */
+
+#endif

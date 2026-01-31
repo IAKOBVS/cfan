@@ -27,21 +27,19 @@
 #include <unistd.h>
 #include <signal.h>
 #include <signal.h>
-#include "path.h"
 
+#include "path.h"
+#include "cfan.h"
 #include "macros.h"
 #include "config.h"
-#include "temp.h"
+#include "table-temp.h"
 
-#include "fans.generated.h"
+#include "table-fans.generated.h"
 #include "cpu.generated.h"
 
 #define STEPUP_SPIKE 4
 
 static unsigned int c_hot_secs;
-
-void
-c_exit(int status);
 
 static unsigned int
 c_atou_lt3(const char *buf, int len)
@@ -100,14 +98,30 @@ c_temp_get(const char *temp_file)
 	return c_atou_lt3(buf, read_sz);
 }
 
-static ATTR_INLINE unsigned int
-c_temp_max_get()
+unsigned int
+c_temp_sysfs_max_get(void)
 {
 	unsigned int max = 0;
 	for (unsigned int i = 0, curr; i < LEN(c_table_temps); ++i) {
 		curr = c_temp_get(c_table_temps[i]);
-		if (curr == (unsigned int)-1)
-			DIE_GRACEFUL(return (unsigned int)-1);
+		if (unlikely(curr == (unsigned int)-1))
+			return (unsigned int)-1;
+		if (curr > max)
+			max = curr;
+	}
+	return max;
+}
+
+static ATTR_INLINE unsigned int
+c_temp_max_get(void)
+{
+	unsigned int curr;
+	unsigned int max = 0;
+	for (unsigned int i = 0; i < LEN(c_table_fn_temps); ++i) {
+		curr = c_table_fn_temps[i]();
+		fprintf(stderr, "%s:%d:%s: getting temperature: %d.\n", __FILE__, __LINE__, ASSERT_FUNC, curr);
+		if (unlikely(curr == (unsigned int)-1))
+			return (unsigned int)-1;
 		if (curr > max)
 			max = curr;
 	}
@@ -196,7 +210,7 @@ enum {
 };
 
 static void
-c_cleanup()
+c_cleanup(void)
 {
 	setbuf(stdout, NULL);
 	for (unsigned int i = 0; i < LEN(c_table_fans_enable); ++i) {
@@ -232,7 +246,7 @@ c_sig_handler(int signum)
 }
 
 static void
-c_sig_setup()
+c_sig_setup(void)
 {
 	if (unlikely(signal(SIGTERM, c_sig_handler) == SIG_ERR))
 		DIE();
@@ -241,7 +255,7 @@ c_sig_setup()
 }
 
 static void
-c_paths_sysfs_resolve()
+c_paths_sysfs_resolve(void)
 {
 	typedef struct {
 		const char **data;
@@ -265,24 +279,23 @@ c_paths_sysfs_resolve()
 				/* Set new path. */
 				tables[i].data[j] = p;
 			} else {
-				DBG(fprintf(stderr, "%s:%d:%s: %s exists.\n",  __FILE__, __LINE__, ASSERT_FUNC, p));
+				DBG(fprintf(stderr, "%s:%d:%s: %s exists.\n", __FILE__, __LINE__, ASSERT_FUNC, p));
 			}
 		}
 	}
 }
 
 static void
-c_fans_enable()
+c_fans_enable(void)
 {
 	for (unsigned int i = 0; i < LEN(c_table_fans_enable); ++i)
 		if (unlikely(c_putchar(c_table_fans_enable[i], PWM_ENABLE_MANUAL)))
 			DIE_GRACEFUL();
 }
 
-static void
-c_init()
+void
+c_init(void)
 {
-	c_sig_setup();
 	c_paths_sysfs_resolve();
 	c_fans_enable();
 }
@@ -291,7 +304,7 @@ static ATTR_INLINE unsigned int
 c_step_need(unsigned int *speed, unsigned int speed_last, unsigned int temp)
 {
 	*speed = c_table_temptospeed[temp];
-	DBG(fprintf(stderr, "%s:%d:%s: geting speed: %d.\n",  __FILE__, __LINE__, ASSERT_FUNC, *speed));
+	DBG(fprintf(stderr, "%s:%d:%s: geting speed: %d.\n", __FILE__, __LINE__, ASSERT_FUNC, *speed));
 	/* Avoid updating if speed has not changed. */
 	return (*speed != speed_last);
 }
@@ -304,9 +317,9 @@ c_step(unsigned int speed, unsigned int *speed_last, unsigned int temp)
 		if (speed > *speed_last - STEPDOWN_MAX)
 			/* This avoids unwanted ramping up for short spikes
 			 * as in opening a browser. */
-			if (c_hot_secs <= SPIKE_MAX && likely(temp < 83)) {
+			if (c_hot_secs <= SPIKE_MAX && likely(temp < SPIKE_TEMP_MAX)) {
 				++c_hot_secs;
-				DBG(fprintf(stderr, "%s:%d:%s: getting step: %d.\n",  __FILE__, __LINE__, ASSERT_FUNC, speed));
+				DBG(fprintf(stderr, "%s:%d:%s: getting step: %d.\n", __FILE__, __LINE__, ASSERT_FUNC, speed));
 				return *speed_last + STEPUP_SPIKE;
 			}
 	} else { /* speed < *speed_last */
@@ -315,7 +328,7 @@ c_step(unsigned int speed, unsigned int *speed_last, unsigned int temp)
 	}
 	*speed_last = speed;
 	c_hot_secs = 0;
-	DBG(fprintf(stderr, "%s:%d:%s: getting step: %d.\n",  __FILE__, __LINE__, ASSERT_FUNC, speed));
+	DBG(fprintf(stderr, "%s:%d:%s: getting step: %d.\n", __FILE__, __LINE__, ASSERT_FUNC, speed));
 	return speed;
 }
 
@@ -331,7 +344,7 @@ c_speeds_set(unsigned int speed)
 		DIE_GRACEFUL(return -1);
 #endif
 	for (unsigned int i = 0; i < LEN(c_table_fans); ++i) {
-		DBG(fprintf(stderr, "%s:%d:%s: setting speed: %s to fan %s.\n",  __FILE__, __LINE__, ASSERT_FUNC, speeds, c_table_fans[i]));
+		DBG(fprintf(stderr, "%s:%d:%s: setting speed: %s to fan %s.\n", __FILE__, __LINE__, ASSERT_FUNC, speeds, c_table_fans[i]));
 		if (unlikely(c_speed_set(c_table_fans[i], speeds, speeds_len) == -1))
 			DIE_GRACEFUL(return -1);
 	}
@@ -343,7 +356,7 @@ c_mainloop(void)
 {
 	/* Avoid underflow. */
 	if (unlikely(STEPDOWN_MAX > c_table_temptospeed[0])) {
-		fprintf(stderr, "cfan: STEPDOWN_MAX (%d) must not be greater than the minimum fan speed (%d).\n", STEPDOWN_MAX, c_table_temptospeed[0]);
+		fprintf(stderr, "%s:%d:%s: STEPDOWN_MAX (%d) must not be greater than the minimum fan speed (%d).\n", __FILE__, __LINE__, ASSERT_FUNC, STEPDOWN_MAX, c_table_temptospeed[0]);
 		DIE_GRACEFUL();
 	}
 	unsigned int speed_last = c_fanspeed_max_get();
@@ -366,9 +379,18 @@ sleep:
 	}
 }
 
+static void
+c_inits(void)
+{
+	for (unsigned int i = 0; i < LEN(c_table_fn_init); ++i)
+		c_table_fn_init[i]();
+}
+
 int
 main(void)
 {
-	c_init();
+	c_sig_setup();
+	c_inits();
 	c_mainloop();
+	return EXIT_SUCCESS;
 }
