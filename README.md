@@ -1,9 +1,11 @@
 # cfan
 A minimal fan speed controller written in C.
 # Features
-- Zero dependencies: directly uses linux sysfs
+- Zero dependencies: directly uses sysfs from Linux.
+- GPU temperature monitoring with NVML (optional).
 # Building
 ```
+$ make config
 $ make
 $ sudo make install
 ```
