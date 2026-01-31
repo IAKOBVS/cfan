@@ -51,55 +51,53 @@ path_sysfs_resolve(const char *filename, const char *pattern, const char *patter
 		return (char *)filename;
 	const char *platform_prefix = "/sys/devices/platform/";
 	/* "hwmon/hwmon" */
-	if (strstr(filename, pattern)
-	    && strstr(filename, platform_prefix)) {
+	if (strstr(filename, platform_prefix) == filename
+	    && strstr(filename, pattern)) {
 		char path[PATH_MAX];
 		char cwd_orig[PATH_MAX];
-		if (strstr(filename, platform_prefix)) {
-			getcwd(cwd_orig, sizeof(cwd_orig));
-			if (unlikely(chdir(platform_prefix) == -1))
-				DIE();
-			getcwd(path, sizeof(path));
-			const char *p = filename + strlen(platform_prefix);
-			char platform[256];
-			char *platform_e = platform;
-			while (*p != '/' && *p != '\0')
-				*platform_e++ = *p++;
-			*platform_e = '\0';
-			if (unlikely(chdir(platform) == -1))
-				DIE();
-			glob_t g_dir;
-			/* "hwmon/hwmon[0-9]*" */
-			int ret = glob(pattern_glob, 0, NULL, &g_dir);
-			/* Match */
-			if (ret == 0) {
-				const char *label = strrchr(filename, '/');
-				if (label) {
-					++label;
-					for (unsigned int i = 0; i < g_dir.gl_pathc; ++i) {
-						const char *dir = g_dir.gl_pathv[i];
-						if (chdir(dir) == -1)
-							DIE();
-						globfree(&g_dir);
-						if (access(label, F_OK) == -1)
-							DIE();
-						char *heap = (char *)malloc(PATH_MAX);
-						if (heap == NULL)
-							DIE();
-						if (realpath(label, heap) != heap)
-							DIE();
-						if (unlikely(chdir(cwd_orig)) == -1)
-							DIE();
-						return heap;
-					}
-				} else {
-					DIE();
+		getcwd(cwd_orig, sizeof(cwd_orig));
+		if (unlikely(chdir(platform_prefix) == -1))
+			DIE();
+		getcwd(path, sizeof(path));
+		const char *p = filename + strlen(platform_prefix);
+		char platform[256];
+		char *platform_e = platform;
+		while (*p != '/' && *p != '\0')
+			*platform_e++ = *p++;
+		*platform_e = '\0';
+		if (unlikely(chdir(platform) == -1))
+			DIE();
+		glob_t g_dir;
+		/* "hwmon/hwmon[0-9]*" */
+		int ret = glob(pattern_glob, 0, NULL, &g_dir);
+		/* Match */
+		if (ret == 0) {
+			const char *label = strrchr(filename, '/');
+			if (label) {
+				++label;
+				for (unsigned int i = 0; i < g_dir.gl_pathc; ++i) {
+					const char *dir = g_dir.gl_pathv[i];
+					if (chdir(dir) == -1)
+						DIE();
+					globfree(&g_dir);
+					if (access(label, F_OK) == -1)
+						DIE();
+					char *heap = (char *)malloc(PATH_MAX);
+					if (heap == NULL)
+						DIE();
+					if (realpath(label, heap) != heap)
+						DIE();
+					if (unlikely(chdir(cwd_orig)) == -1)
+						DIE();
+					return heap;
 				}
 			} else {
-				if (ret == GLOB_NOMATCH)
-					globfree(&g_dir);
 				DIE();
 			}
+		} else {
+			if (ret == GLOB_NOMATCH)
+				globfree(&g_dir);
+			DIE();
 		}
 	}
 	return NULL;
