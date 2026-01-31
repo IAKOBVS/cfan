@@ -26,6 +26,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <signal.h>
+#include <signal.h>
+#include "path.h"
 
 #include "macros.h"
 #include "config.h"
@@ -111,7 +113,6 @@ c_temp_max_get()
 	}
 	return max;
 }
-
 
 static int
 c_gets_len(const char *filename, char *dst, unsigned int *dst_len)
@@ -243,6 +244,42 @@ static void
 c_init()
 {
 	c_sig_setup();
+	typedef struct {
+		const char **data;
+		const unsigned int len;
+	} strlist_ty;
+	/* Iterate through all the potential sysfs files. */
+	const strlist_ty tables[] = {
+		(strlist_ty) { c_table_fans,        LEN(c_table_fans)        },
+		(strlist_ty) { c_table_fans_enable, LEN(c_table_fans_enable) },
+		(strlist_ty) { c_table_temps,       LEN(c_table_temps)       },
+	};
+	/* Update hwmon/hwmon[0-9]* and thermal/thermal_zone[0-9]* to point to
+	 * the real file, given that the number may change between reboots. */
+	for (unsigned int i = 0; i < LEN(tables); ++i) {
+		for (unsigned int j = 0; j < tables[i].len; ++j) {
+			const char *pattern;
+			const char *pattern_glob;
+			if (strstr(tables[i].data[j], "hwmon/hwmon")) {
+				pattern = "hwmon/hwmon";
+				pattern_glob = "hwmon/hwmon[0-9]*";
+			} else if (strstr(tables[i].data[j], "thermal/thermal_zone")) {
+				pattern = "thermal/thermal_zone";
+				pattern_glob = "thermal/thermal_zone[0-9]*";
+			} else {
+				continue;
+			}
+			char *p = sysfs_path_resolve(&tables[i].data[j], pattern, pattern_glob);
+			if (unlikely(p == NULL))
+				DIE();
+			if (p != tables[i].data[j]) {
+				DBG(fprintf(stderr, "%s doesn't exist, resolved to %s (which is malloc'd).\n", tables[i].data[j], p));
+				tables[i].data[j] = p;
+			} else {
+				DBG(fprintf(stderr, "%s exists.\n", p));
+			}
+		}
+	}
 	for (unsigned int i = 0; i < LEN(c_table_fans_enable); ++i)
 		if (unlikely(c_putchar(c_table_fans_enable[i], PWM_ENABLE_MANUAL)))
 			DIE_GRACEFUL();

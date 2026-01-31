@@ -7,7 +7,7 @@ for file in $files; do
 		exit
 	fi
 done
-echo "getcpufile: coretemp not found. in $files!"
+echo "getcpufile: $pkg_temp not found. in $files!"
 echo 'Need to manually add CPU_TEMP_FILE macro to cpu.generated.h.'
 echo 'Example cpu.generated.h:'
 echo '#define CPU_TEMP_FILE "/path/to/cpu_temp'
