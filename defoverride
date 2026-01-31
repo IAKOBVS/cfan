@@ -1,2 +1,3 @@
 #!/bin/sh
 cp config.h config.def.h
+cp table-temp.h table-temp.def.h
