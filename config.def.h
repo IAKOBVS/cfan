@@ -4,7 +4,7 @@
 /* Monitor Nvidia GPU with NVML. (Uncomment to enable)
  * For open-Source drivers, where you can monitor temperature through
  * sysfs, place the path to the temperature file in table-temp.h. */
-#	define USE_CUDA 1
+/* #	define USE_CUDA 1 */
 /* How often to update. (secs) */
 #	define INTERVAL_UPDATE 1
 /* Maximum fan speed change per update when ramping down (0-255). */
