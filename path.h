@@ -81,12 +81,16 @@ path_sysfs_resolve(const char *filename)
 	int ret = glob(glob_pattern, 0, NULL, &g);
 	/* Match */
 	if (ret == 0) {
-		if (access(g.gl_pathv[0], F_OK) == -1)
+		if (access(g.gl_pathv[0], F_OK) == -1) {
+			globfree(&g);
 			return NULL;
+		}
 		len += strlen(g.gl_pathv[0] + len - S_LEN(pat));
 		char *tmp = (char *)malloc((size_t)len + 1);
-		if (unlikely(tmp == NULL))
+		if (unlikely(tmp == NULL)) {
+			globfree(&g);
 			return NULL;
+		}
 		memcpy(tmp, g.gl_pathv[0], (size_t)len);
 		*(tmp + len) = '\0';
 		DBG(fprintf(stderr, "%s:%d:%s: tmp (malloc'd): %s.\n", __FILE__, __LINE__, ASSERT_FUNC, tmp));
