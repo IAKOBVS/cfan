@@ -22,10 +22,10 @@
 
 #include "config.h"
 
-#ifdef USE_CUDA
+#ifndef GPU_NVIDIA_H
+#	define GPU_NVIDIA_H 1
 
-#	ifndef GPU_NVIDIA_H
-#		define GPU_NVIDIA_H 1
+#	ifdef USE_CUDA
 
 #		define NVML_HEADER "/opt/cuda/include/nvml.h"
 #		include NVML_HEADER
@@ -40,11 +40,12 @@
 #		include "cfan.h"
 #		include "macros.h"
 
-#		define NV_DIE_GRACEFUL(nv_ret)                                                 \
-			do {                                                                    \
-				if (nv_ret)                                                     \
-					fprintf(stderr, "cfan: %s\n", nvmlErrorString(nv_ret)); \
-				c_exit(EXIT_FAILURE);                                           \
+#		define NV_DIE_GRACEFUL(nv_ret)                                                                                      \
+			do {                                                                                                         \
+				if (nv_ret != NVML_SUCCESS)                                                                          \
+					fprintf(stderr, "%s:%d:%s: %s\n", __FILE__, __LINE__, ASSERT_FUNC, nvmlErrorString(nv_ret)); \
+				nv_cleanup();                                                                                        \
+				c_exit(EXIT_FAILURE);                                                                                \
 			} while (0)
 
 /* May not work for older versions of CUDA, in which case, comment it out. */
@@ -85,16 +86,6 @@ nv_cleanup()
 }
 
 static void
-nv_exit(nvmlReturn_t ret)
-{
-	if (errno)
-		perror("");
-	fprintf(stderr, "nvspeed: %s\n", nvmlErrorString(ret));
-	nv_cleanup();
-	_Exit(ret == NVML_SUCCESS ? EXIT_SUCCESS : EXIT_FAILURE);
-}
-
-static void
 nv_init()
 {
 	nv_ret = nvmlInit();
@@ -129,6 +120,6 @@ nv_temp_gpu_get_max()
 	return max;
 }
 
-#	endif /* GPU_NVIDIA_H */
+#	endif
 
-#endif
+#endif /* GPU_NVIDIA_H */

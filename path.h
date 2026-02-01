@@ -47,14 +47,16 @@
 static char *
 path_sysfs_resolve(const char *filename)
 {
-	enum n {
-#	ifndef NAME_MAX
+#	if !defined NAME_MAX || !defined PATH_MAX
+	enum {
+#		ifndef NAME_MAX
 		NAME_MAX = 256,
-#	endif
-#	ifndef PATH_MAX
+#		endif
+#		ifndef PATH_MAX
 		PATH_MAX = 4096,
-#	endif
+#		endif
 	};
+#	endif
 	if (access(filename, F_OK) == 0)
 		return (char *)filename;
 	char platform[NAME_MAX];
@@ -67,14 +69,7 @@ path_sysfs_resolve(const char *filename)
 	char glob_pattern[PATH_MAX];
 	const char pat[] = "[0-9]*";
 	/* Construct the glob pattern. */
-	int len = sprintf(glob_pattern,
-	                  "/sys/devices/platform/%s/%s/%s%s/%.*s",
-	                  platform,
-	                  monitor_dir,
-	                  monitor_subdir,
-	                  pat,
-	                  (int)(sizeof(glob_pattern) - 1 - strlen(platform) - strlen(monitor_dir) - strlen(monitor_subdir) - strlen(pat)),
-	                  tail);
+	int len = snprintf(glob_pattern, sizeof(glob_pattern), "/sys/devices/platform/%s/%s/%s%s/%s", platform, monitor_dir, monitor_subdir, pat, tail);
 	if (unlikely(len < 0))
 		return NULL;
 	DBG(fprintf(stderr, "%s:%d:%s: platform: %s.\n", __FILE__, __LINE__, ASSERT_FUNC, platform));
