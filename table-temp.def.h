@@ -17,7 +17,7 @@ static const char *c_table_temps[] = {
 	 * "/sys/devices/platform/coretemp.0/hwmon/hwmon2/temp1_input",
 	 * "/sys/devices/platform/coretemp.0/hwmon/hwmon2/temp2_input",
 	 * */
-	CPU_TEMP_FILE
+	CPU_TEMP_FILE,
 };
 
 typedef unsigned int (*fn_temp)(void);
