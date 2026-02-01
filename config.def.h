@@ -2,7 +2,7 @@
 #	define CONFIG_H 1
 
 /* Monitor Nvidia GPU with NVML. (Uncomment to enable)
- * For open-Source drivers, where you can use monitor temperature through
+ * For open-Source drivers, where you can monitor temperature through
  * sysfs, place the path to the temperature file in table-temp.h. */
 #	define USE_CUDA 1
 /* How often to update. (secs) */
