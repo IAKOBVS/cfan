@@ -24,12 +24,12 @@ typedef unsigned int (*fn_temp)(void);
 
 static const fn_temp c_table_fn_temps[] = {
 	c_temp_sysfs_max_get,
-	nv_temp_gpu_get_max
+	/* nv_temp_gpu_get_max, */
 };
 
 typedef void (*fn_temp_init)(void);
 
 static const fn_temp_init c_table_fn_init[] = {
 	c_init,
-	nv_init
+	/* nv_init, */
 };
