@@ -27,6 +27,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <signal.h>
+#include <ctype.h>
 
 #include "path.h"
 #include "cfan.h"
@@ -209,32 +210,63 @@ enum {
 	PWM_ENABLE_AUTO = '2',
 };
 
+static ATTR_INLINE int
+c_speeds_set(unsigned int speed)
+{
+	/* speed: 0-255 */
+	char speeds[4];
+	/* Convert speed to a string to pass to sysfs. */
+	const unsigned int speeds_len = c_utoa_lt3_p(speed, speeds) - speeds;
+#ifdef DEBUG
+	if (unlikely((int)speed != atoi(speeds)))
+		DIE_GRACEFUL(return -1);
+#endif
+	for (unsigned int i = 0; i < LEN(c_table_fans); ++i) {
+		DBG(fprintf(stderr, "%s:%d:%s: setting speed: %s to fan %s.\n", __FILE__, __LINE__, ASSERT_FUNC, speeds, c_table_fans[i]));
+		if (unlikely(c_speed_set(c_table_fans[i], speeds, speeds_len) == -1))
+			DIE_GRACEFUL(return -1);
+	}
+	return 0;
+}
+
 static void
 c_cleanup(void)
 {
 	setbuf(stdout, NULL);
-	for (unsigned int i = 0; i < LEN(c_table_fans_enable); ++i) {
-		char min_speed[4];
-		const unsigned int min_speed_len = (unsigned int)sprintf(min_speed, "%d", FANSPEED_DEFAULT);
-		if (unlikely((int)min_speed_len == -1))
-			DIE();
-		printf("Setting speed %s to fan %s.\n", min_speed, c_table_fans[i]);
-		/* Set fan to minimum speed. */
-		if (unlikely(c_puts_len(c_table_fans[i], min_speed, min_speed_len) == -1))
-			DIE();
+	if (unlikely(c_speeds_set(FANSPEED_DEFAULT) == -1))
+		DIE_GRACEFUL();
 #if 0
+	for (unsigned int i = 0; i < LEN(c_table_fans_enable); ++i) {
 		printf("Setting auto mode to fan %s.\n", c_table_fans[i]);
 		/* Restore mode to auto. */
 		if (unlikely(c_putchar(c_table_fans_enable[i], PWM_ENABLE_AUTO) == -1))
 			DIE_GRACEFUL();
+	}
 #endif
+}
+
+#ifdef EXIT_SLOW
+static void
+c_cleanup_slow(void)
+{
+	setbuf(stdout, NULL);
+	for (unsigned int speed = c_fanspeed_get(c_table_fans[0]); speed > FANSPEED_DEFAULT; speed -= 10) {
+		if (unlikely(c_speeds_set(speed) == -1))
+			DIE_GRACEFUL();
+		if (unlikely(sleep(1)))
+			DIE_GRACEFUL();
 	}
 }
+#endif
 
 void
 c_exit(int status)
 {
+#ifdef EXIT_SLOW
+	c_cleanup_slow();
+#else
 	c_cleanup();
+#endif
 	_Exit(status);
 }
 
@@ -332,25 +364,6 @@ c_step(unsigned int speed, unsigned int *speed_last, unsigned int temp)
 	return speed;
 }
 
-static ATTR_INLINE int
-c_speeds_set(unsigned int speed)
-{
-	/* speed: 0-255 */
-	char speeds[4];
-	/* Convert speed to a string to pass to sysfs. */
-	const unsigned int speeds_len = c_utoa_lt3_p(speed, speeds) - speeds;
-#ifdef DEBUG
-	if (unlikely((int)speed != atoi(speeds)))
-		DIE_GRACEFUL(return -1);
-#endif
-	for (unsigned int i = 0; i < LEN(c_table_fans); ++i) {
-		DBG(fprintf(stderr, "%s:%d:%s: setting speed: %s to fan %s.\n", __FILE__, __LINE__, ASSERT_FUNC, speeds, c_table_fans[i]));
-		if (unlikely(c_speed_set(c_table_fans[i], speeds, speeds_len) == -1))
-			DIE_GRACEFUL(return -1);
-	}
-	return 0;
-}
-
 static void
 c_mainloop(void)
 {
@@ -386,8 +399,106 @@ c_inits(void)
 		c_table_fn_init[i]();
 }
 
+static char *
+c_aredigits(const char *s)
+{
+	for (; isdigit(*s); ++s) {}
+	return *s == '\0' ? (char *)s : NULL;
+}
+
+static char *
+c_startswith(const char *s1, const char *s2)
+{
+	for (; *s1 == *s2 && *s2; ++s1, ++s2)
+		;
+	return *s2 == '\0' ? (char *)s1 : NULL;
+}
+
+#define _(x) x
+
+/* clang-format off */
+
+const char *c_usage = 
+	_("Usage: cfan [OPTIONS]...\n")
+	_("Options:\n")
+	_("  --set-speed-pwm SPEED\n")
+	_("    Set all fan speeds to SPEED (0-255).\n")
+	_("  --set-speed-percent SPEED\n")
+	_("    Set all fan speeds to SPEED (0-100).\n")
+	_("\n")
+	_("Otherwise, it will use the configuration in config.h");
+
+/* clang-format on */
+
+void
+c_args_handle(int argc, const char **argv)
+{
+	for (unsigned int i = 1; i < (unsigned int)argc; ++i) {
+		if (c_startswith(argv[i], "--")) {
+			if (c_startswith(argv[i], "--set-speed")) {
+				if (unlikely(argv[i + 1] == NULL))
+					DIE_GRACEFUL();
+				char *end = c_aredigits(argv[i + 1]);
+				if (unlikely(end == NULL))
+					DIE_GRACEFUL();
+				if (unlikely(end - argv[i + 1] < 1))
+					DIE_GRACEFUL();
+				if (unlikely(end - argv[i + 1] > 3))
+					DIE_GRACEFUL();
+				int min;
+				int max;
+				enum {
+					MODE_PWM = 1,
+					MODE_PERCENT = 2,
+				};
+				int speed_mode;
+				if (!strcmp(argv[i] + S_LEN("--set-speed"), "-pwm")) {
+					min = 51;
+					max = 255;
+					speed_mode = MODE_PWM;
+				} else if (!strcmp(argv[i] + S_LEN("--set-speed"), "-percent")) {
+					min = 20;
+					max = 100;
+					speed_mode = MODE_PERCENT;
+				} else {
+					fprintf(stderr, "%s\n", c_usage);
+					DIE_GRACEFUL();
+					speed_mode = 0;
+					min = 0;
+					max = 0;
+				}
+				int speed = atoi(argv[i + 1]);
+				if (unlikely(speed < min))
+					exit(EXIT_SUCCESS);
+				if (unlikely(speed > max)) {
+					fprintf(stderr, "%s:%d:%s: trying to set speed (%d) above maximum (255).\n", __FILE__, __LINE__, ASSERT_FUNC, speed);
+					DIE_GRACEFUL();
+				}
+				if (speed_mode == MODE_PERCENT)
+					speed = (int)((float)speed * 2.55f);
+				if (unlikely(c_speeds_set((unsigned int)speed) == -1))
+					DIE_GRACEFUL();
+				exit(EXIT_SUCCESS);
+			}
+		} else if (c_startswith(argv[i], "-")) {
+			if (c_startswith(argv[i], "-h")) {
+				printf("%s\n", c_usage);
+				exit(EXIT_SUCCESS);
+			} else {
+				fprintf(stderr, "%s\n", c_usage);
+				exit(EXIT_FAILURE);
+			}
+		} else {
+			fprintf(stderr, "%s\n", c_usage);
+			DIE_GRACEFUL();
+		}
+	}
+}
+
+/* clang-format on */
+
 int
-main(void)
+main(int argc, const char **argv)
 {
 	c_sig_setup();
 	c_inits();

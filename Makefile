@@ -10,7 +10,8 @@ REQ += $(REQ_CUDA)
 
 REQ += config.h cpu.generated.h table-fans.generated.h table-temp.h
 
-CFLAGS = -O2 -march=native -fanalyzer -Wno-unknown-warning-option -Warray-bounds -Wnull-dereference -Wformat -Wunused -Wwrite-strings
+CFLAGS_DEBUG = -DDEBUG=1 -DEXIT_SLOW=1
+CFLAGS = -O2 -march=native -flto -fanalyzer -Wno-unknown-warning-option -Warray-bounds -Wnull-dereference -Wformat -Wunused -Wwrite-strings
 PROG = cfan
 PREFIX = /usr/local
 
@@ -18,6 +19,11 @@ all: $(PROG)
 
 cfan: $(PROG).c $(REQ)
 	$(CC) -o $@ $(PROG).c $(CFLAGS) $(CPPFLAGS) $(LDFLAGS)
+
+$(PROG)-debug: $(PROG).c $(REQ)
+	$(CC) -o $@ $(PROG).c $(CFLAGS_DEBUG) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS)
+
+debug: $(PROG)-debug
 
 config.h:
 	cp config.def.h $@
