@@ -27,7 +27,9 @@
 #include <unistd.h>
 #include <signal.h>
 #include <signal.h>
-#include <ctype.h>
+#if 0
+#	include <ctype.h>
+#endif
 
 #include "path.h"
 #include "cfan.h"
@@ -399,6 +401,8 @@ c_inits(void)
 		c_table_fn_init[i]();
 }
 
+#if 0
+
 static char *
 c_aredigits(const char *s)
 {
@@ -414,7 +418,7 @@ c_startswith(const char *s1, const char *s2)
 	return *s2 == '\0' ? (char *)s1 : NULL;
 }
 
-#define _(x) x
+#	define _(x) x
 
 /* clang-format off */
 
@@ -496,6 +500,8 @@ c_args_handle(int argc, const char **argv)
 }
 
 /* clang-format on */
+
+#endif
 
 int
 main(int argc, const char **argv)
