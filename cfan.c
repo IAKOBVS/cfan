@@ -352,7 +352,7 @@ c_step(unsigned int speed, unsigned int *speed_last, unsigned int temp)
 			if (c_hot_secs <= SPIKE_MAX && likely(temp < SPIKE_TEMP_MAX)) {
 				++c_hot_secs;
 				DBG(fprintf(stderr, "%s:%d:%s: getting step: %d.\n", __FILE__, __LINE__, ASSERT_FUNC, speed));
-				return *speed_last + STEPUP_SPIKE;
+				return *speed_last += STEPUP_SPIKE;
 			}
 	} else { /* speed < *speed_last */
 		/* Ramp down slower. */
