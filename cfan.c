@@ -122,7 +122,7 @@ c_temp_max_get(void)
 	unsigned int max = 0;
 	for (unsigned int i = 0; i < LEN(c_table_fn_temps); ++i) {
 		curr = c_table_fn_temps[i]();
-		fprintf(stderr, "%s:%d:%s: getting temperature: %d.\n", __FILE__, __LINE__, ASSERT_FUNC, curr);
+		DBG(fprintf(stderr, "%s:%d:%s: getting temperature: %d.\n", __FILE__, __LINE__, ASSERT_FUNC, curr));
 		if (unlikely(curr == (unsigned int)-1))
 			return (unsigned int)-1;
 		if (curr > max)
