@@ -14,7 +14,7 @@
 /* Set speed to this value on exit. */
 #	define FANSPEED_DEFAULT 60
 /* Set temperature to allow fans to instantly ramp up signifcantly. */
-#	define SPIKE_TEMP_MAX 83
+#	define SPIKE_TEMP_MAX 70
 
 
 /* Fan speed: 0-255

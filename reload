@@ -1,5 +1,7 @@
 #!/bin/sh
 BIN=cfan
+LOG_FILE=/tmp/dwmblocks-fast.log
 sudo killall "$BIN"
-sudo make clean
+make
 sudo make install
+nohup sudo cfan >/dev/null 2>"$LOG_FILE" &
