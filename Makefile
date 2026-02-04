@@ -8,12 +8,13 @@ REQ_CUDA = gpu-nvidia.h
 LDFLAGS += $(LDFLAGS_CUDA)
 REQ += $(REQ_CUDA)
 
-REQ += config.h cpu.generated.h table-fans.generated.h table-temp.h
+REQ += config.h cpu.generated.h table-fans.generated.h table-temp.h path.h
 
 CFLAGS_DEBUG = -DDEBUG=1 -DEXIT_SLOW=1
 CFLAGS = -O2 -march=native -flto -fanalyzer -Wno-unknown-warning-option -Warray-bounds -Wnull-dereference -Wformat -Wunused -Wwrite-strings
 PROG = cfan
 PREFIX = /usr/local
+CC = cc
 
 all: $(PROG)
 

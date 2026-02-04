@@ -59,48 +59,47 @@ path_sysfs_resolve(const char *filename)
 #	endif
 	if (access(filename, F_OK) == 0)
 		return (char *)filename;
-	char platform[NAME_MAX];
-	char monitor_dir[NAME_MAX];
-	char monitor_subdir[NAME_MAX];
-	char tail[PATH_MAX];
-	/* %[^/]: match non slash. */
-	if (unlikely(sscanf(filename, "/sys/devices/platform/%[^/]/%[^/]/%[^/0-9]%*[0-9]/%s", platform, monitor_dir, monitor_subdir, tail) < 0))
+	char cmd[PATH_MAX + PATH_MAX];
+	/* Convert the filename into a glob. */
+	const char *sed_cmd = "s/\\(\\/sys\\/devices.*\\)\\/\\([^/0-9]*\\)[0-9]*\\/\\([^/]*\\)$/\\1\\/\\2[0-9]*\\/\\3/";
+	if (unlikely(snprintf(cmd, sizeof(cmd), "echo '%s' | sed '%s'", filename, sed_cmd)) == -1)
 		return NULL;
-	char glob_pattern[PATH_MAX];
-	const char pat[] = "[0-9]*";
-	/* Construct the glob pattern. */
-	int len = snprintf(glob_pattern, sizeof(glob_pattern), "/sys/devices/platform/%s/%s/%s%s/%s", platform, monitor_dir, monitor_subdir, pat, tail);
-	if (unlikely(len < 0))
+	DBG(fprintf(stderr, "%s:%d:%s: cmd: %s.\n", __FILE__, __LINE__, ASSERT_FUNC, cmd));
+	FILE *fp = popen(cmd, "r");
+	if (unlikely(fp == NULL))
 		return NULL;
-	DBG(fprintf(stderr, "%s:%d:%s: platform: %s.\n", __FILE__, __LINE__, ASSERT_FUNC, platform));
-	DBG(fprintf(stderr, "%s:%d:%s: monitor_dir: %s.\n", __FILE__, __LINE__, ASSERT_FUNC, monitor_dir));
-	DBG(fprintf(stderr, "%s:%d:%s: monitor_subdir: %s.\n", __FILE__, __LINE__, ASSERT_FUNC, monitor_subdir));
-	DBG(fprintf(stderr, "%s:%d:%s: tail: %s.\n", __FILE__, __LINE__, ASSERT_FUNC, tail));
+	char glob_pattern[PATH_MAX + NAME_MAX];
+	const int fd = fileno(fp);
+	if (unlikely(fd == -1)) {
+		pclose(fp);
+		return NULL;
+	}
+	ssize_t read_len = read(fd, glob_pattern, sizeof(glob_pattern) - 1);
+	if (unlikely(pclose(fp) == -1))
+		return NULL;
+	if (unlikely(read_len == -1))
+		return NULL;
+	if (*(glob_pattern + read_len - 1) == '\n')
+		--read_len;
+	glob_pattern[read_len] = '\0';
 	DBG(fprintf(stderr, "%s:%d:%s: glob_pattern: %s.\n", __FILE__, __LINE__, ASSERT_FUNC, glob_pattern));
 	glob_t g;
+	/* Expand the glob into the real file. */
 	int ret = glob(glob_pattern, 0, NULL, &g);
-	/* Match */
 	if (ret == 0) {
-		if (access(g.gl_pathv[0], F_OK) == -1) {
-			globfree(&g);
+		const size_t len = strlen(g.gl_pathv[0]);
+		char *heap = (char *)malloc(len + 1);
+		if (heap == NULL)
 			return NULL;
-		}
-		len += strlen(g.gl_pathv[0] + len - S_LEN(pat));
-		char *tmp = (char *)malloc((size_t)len + 1);
-		if (unlikely(tmp == NULL)) {
-			globfree(&g);
-			return NULL;
-		}
-		memcpy(tmp, g.gl_pathv[0], (size_t)len);
-		*(tmp + len) = '\0';
-		DBG(fprintf(stderr, "%s:%d:%s: tmp (malloc'd): %s.\n", __FILE__, __LINE__, ASSERT_FUNC, tmp));
+		memcpy(heap, g.gl_pathv[0], len);
+		*(heap + len) = '\0';
 		globfree(&g);
-		return tmp;
+		DBG(fprintf(stderr, "%s:%d:%s: heap (malloc'd): %s.\n", __FILE__, __LINE__, ASSERT_FUNC, heap));
+		return heap;
+	} else {
+		if (unlikely(ret == GLOB_NOMATCH))
+			globfree(&g);
 	}
-	if (ret == GLOB_NOMATCH)
-		globfree(&g);
-	else
-		return NULL;
 	return NULL;
 }
 
