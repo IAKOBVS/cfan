@@ -114,6 +114,7 @@ nv_temp_gpu_get_max()
 		nv_ret = nv_nvmlDeviceGetTemperature(nv_device[i], NVML_TEMPERATURE_GPU, &temp);
 		if (unlikely(nv_ret != NVML_SUCCESS))
 			NV_DIE_GRACEFUL(nv_ret);
+		DBG(fprintf(stderr, "%s:%d:%s: getting temperature: %d.\n", __FILE__, __LINE__, ASSERT_FUNC, temp));
 		if (temp > max)
 			max = temp;
 	}
