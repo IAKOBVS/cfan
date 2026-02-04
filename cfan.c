@@ -109,7 +109,7 @@ c_temp_sysfs_max_get(void)
 		curr = c_temp_get(c_table_temps[i]);
 		if (unlikely(curr == (unsigned int)-1))
 			return (unsigned int)-1;
-		DBG(fprintf(stderr, "%s:%d:%s: getting temperature: %d.\n", __FILE__, __LINE__, ASSERT_FUNC, curr));
+		DBG(fprintf(stderr, "%s:%d:%s: getting temperature: %d from %s.\n", __FILE__, __LINE__, ASSERT_FUNC, curr, c_table_temps[i]));
 		if (curr > max)
 			max = curr;
 	}

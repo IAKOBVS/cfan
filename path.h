@@ -30,8 +30,17 @@
 #	include <stdio.h>
 #	include <stdlib.h>
 #	include <limits.h>
+#	include <regex.h>
 
 #	include "macros.h"
+
+static ATTR_INLINE char *
+u_stpcpy_len(char *dst, const char *src, size_t n)
+{
+	dst = (char *)memcpy(dst, src, n) + n;
+	*dst = '\0';
+	return dst;
+}
 
 /* Update hwmon/hwmon[0-9]* and thermal/thermal_zone[0-9]* to point to
  * the real file, given that the number may change between reboots.
@@ -41,9 +50,7 @@
  *
  * Filename should start with /sys/devices/platform.
  *
- * Example filename: /sys/devices/platform/coretemp.0/hwmon/hwmon2/temp1_input
- * Example pattern: hwmon/hwmon and thermal/thermal_zone
- * Example pattern_glob: hwmon/hwmon[0-9]* and thermal/thermal_zone[0-9]* */
+ * Example filename: /sys/devices/platform/coretemp.0/hwmon/hwmon2/temp1_input */
 static char *
 path_sysfs_resolve(const char *filename)
 {
@@ -57,48 +64,49 @@ path_sysfs_resolve(const char *filename)
 #		endif
 	};
 #	endif
+	/* No need to continue if file exists. */
 	if (access(filename, F_OK) == 0)
 		return (char *)filename;
-	char cmd[PATH_MAX + PATH_MAX];
+	regex_t r;
+	regmatch_t rm[4];
 	/* Convert the filename into a glob. */
-	const char *sed_cmd = "s/\\(\\/sys\\/devices.*\\)\\/\\([^/0-9]*\\)[0-9]*\\/\\([^/]*\\)$/\\1\\/\\2[0-9]*\\/\\3/";
-	if (unlikely(snprintf(cmd, sizeof(cmd), "echo '%s' | sed '%s'", filename, sed_cmd)) == -1)
+	const char *pattern = "\\(\\/sys\\/devices.*\\)\\/\\([^/0-9]*\\)[0-9]*\\/\\([^/]*\\)$";
+	DBG(fprintf(stderr, "%s:%d:%s: pattern: %s.\n", __FILE__, __LINE__, ASSERT_FUNC, pattern));
+	int ret = regcomp(&r, pattern, 0);
+	if (unlikely(ret))
 		return NULL;
-	DBG(fprintf(stderr, "%s:%d:%s: cmd: %s.\n", __FILE__, __LINE__, ASSERT_FUNC, cmd));
-	FILE *fp = popen(cmd, "r");
-	if (unlikely(fp == NULL))
+	ret = regexec(&r, filename, 4, rm, 0);
+	regfree(&r);
+	if (unlikely(ret != REG_NOERROR))
 		return NULL;
 	char glob_pattern[PATH_MAX + NAME_MAX];
-	const int fd = fileno(fp);
-	if (unlikely(fd == -1)) {
-		pclose(fp);
-		return NULL;
-	}
-	ssize_t read_len = read(fd, glob_pattern, sizeof(glob_pattern) - 1);
-	if (unlikely(pclose(fp) == -1))
-		return NULL;
-	if (unlikely(read_len == -1))
-		return NULL;
-	if (*(glob_pattern + read_len - 1) == '\n')
-		--read_len;
-	glob_pattern[read_len] = '\0';
+	char *glob_end = glob_pattern;
+	/* Construct the glob pattern. */
+	/* /sys/devices/.* */
+	glob_end = (char *)u_stpcpy_len(glob_end, filename + rm[1].rm_so, (size_t)(rm[1].rm_eo - rm[1].rm_so));
+	glob_end = (char *)u_stpcpy_len(glob_end, S_LITERAL("/"));
+	/* hwmon[0-9]* */
+	glob_end = (char *)u_stpcpy_len(glob_end, filename + rm[2].rm_so, (size_t)(rm[2].rm_eo - rm[2].rm_so));
+	glob_end = (char *)u_stpcpy_len(glob_end, S_LITERAL("[0-9]*/"));
+	/* tail */
+	glob_end = (char *)u_stpcpy_len(glob_end, filename + rm[3].rm_so, (size_t)(rm[3].rm_eo - rm[3].rm_so));
 	DBG(fprintf(stderr, "%s:%d:%s: glob_pattern: %s.\n", __FILE__, __LINE__, ASSERT_FUNC, glob_pattern));
 	glob_t g;
 	/* Expand the glob into the real file. */
-	int ret = glob(glob_pattern, 0, NULL, &g);
+	ret = glob(glob_pattern, 0, NULL, &g);
 	if (ret == 0) {
 		const size_t len = strlen(g.gl_pathv[0]);
 		char *heap = (char *)malloc(len + 1);
 		if (heap == NULL)
 			return NULL;
-		memcpy(heap, g.gl_pathv[0], len);
-		*(heap + len) = '\0';
+		u_stpcpy_len(heap, g.gl_pathv[0], len);
 		globfree(&g);
 		DBG(fprintf(stderr, "%s:%d:%s: heap (malloc'd): %s.\n", __FILE__, __LINE__, ASSERT_FUNC, heap));
 		return heap;
-	} else {
-		if (unlikely(ret == GLOB_NOMATCH))
-			globfree(&g);
+	} else if (unlikely(ret == GLOB_NOMATCH)) {
+		globfree(&g);
+	} else { /* glob error */
+		return NULL;
 	}
 	return NULL;
 }
