@@ -2,6 +2,7 @@
 cfan
 cfan-debug
 config.h
+config.mk
 table-temp.h
 *.generated.h
 

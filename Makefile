@@ -1,9 +1,6 @@
 .POSIX:
 
-# NVML (uncomment to disable)
-LIB_CUDA = /opt/cuda/lib64
-LDFLAGS_CUDA = -L$(LIB_CUDA) -lnvidia-ml
-REQ_CUDA = gpu-nvidia.h
+include config.mk
 
 LDFLAGS += $(LDFLAGS_CUDA)
 REQ += $(REQ_CUDA)
@@ -25,6 +22,9 @@ $(PROG)-debug: $(PROG).c $(REQ)
 	$(CC) -o $@ $(PROG).c $(CFLAGS_DEBUG) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS)
 
 debug: $(PROG)-debug
+
+config.mk:
+	cp config.def.mk $@
 
 config.h:
 	cp config.def.h $@
@@ -56,26 +56,26 @@ config:
 	@echo 'For example, to enable CUDA, run:'
 	@echo 'make enable-cuda'
 
-# Comment out parts of the config.h and the Makefile
-enable_cuda: $(config)
+# Comment out parts of the config.h and the config.mk
+enable-cuda: $(config) config.mk
 	@mv config.h config.h.bak
 	@ # Uncomment out USE_CUDA line
 	@sed 's/^.*\(#.*define USE_CUDA 1\).*/\1/' config.h.bak > config.h
 	@rm config.h.bak
-	@cp Makefile Makefile.bak
+	@cp config.mk config.mk.bak
 	@ # Uncomment out LDFLAGS_CUDA line
-	@sed 's/^#.*\(LDFLAGS_CUDA.*\)/\1/; s/^#.*\(REQ_CUDA.*\)/\1/' Makefile.bak > Makefile
-	@rm Makefile.bak
+	@sed 's/^#.*\(LDFLAGS_CUDA.*\)/\1/; s/^#.*\(REQ_CUDA.*\)/\1/' config.mk.bak > config.mk
+	@rm config.mk.bak
 
-disable_cuda: $(config)
+disable-cuda: $(config) config.mk
 	@mv config.h config.h.bak
 	@ # Uncomment out USE_CUDA line
 	@sed 's/^\(#.*define.*USE_CUDA.*1\).*/\/\* \1 \*\//' config.h.bak > config.h
 	@rm config.h.bak
-	@cp Makefile Makefile.bak
+	@cp config.mk config.mk.bak
 	@ # Uncomment out LDFLAGS_CUDA line
-	@sed 's/^\(LDFLAGS_CUDA.*\)/# \1/; s/^\(REQ_CUDA.*\)/# \1/' Makefile.bak > Makefile
-	@rm Makefile.bak
+	@sed 's/^\(LDFLAGS_CUDA.*\)/# \1/; s/^\(REQ_CUDA.*\)/# \1/' config.mk.bak > config.mk
+	@rm config.mk.bak
 
 uninstall:
 	rm -f $(DESTDIR)$(PREFIX)/bin/$(PROG)

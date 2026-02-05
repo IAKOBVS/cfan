@@ -15,4 +15,4 @@ Sudo is required to set fan speed to sysfs.
 $ sudo cfan
 ```
 ## Configuration
-Fan speed is configured in config.h.
+Fan speed is configured in config.h, which temperatures to use in table-temp.h.
