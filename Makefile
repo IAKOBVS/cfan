@@ -35,7 +35,7 @@ table-temp.h:
 clean:
 	rm -f $(PROG)
 
-install: $(PROG)
+install: $(PROG) cfan-set-pwm
 	strip $(PROG)
 	chmod 755 $^
 	mkdir -p $(DESTDIR)$(PREFIX)/bin

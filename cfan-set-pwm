@@ -1,0 +1,6 @@
+#!/bin/sh
+if [ $1 -gt 51 ] || [ $1 -lt 255 ]; then
+	for file in $(find /sys/devices/platform -type f -name 'pwm[0-9]'); do
+		echo "$1" | sudo tee >"$file"
+	done
+fi
