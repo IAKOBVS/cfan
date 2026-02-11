@@ -42,8 +42,6 @@
 
 #define STEPUP_SPIKE 4
 
-static unsigned int c_hot_secs;
-
 static unsigned int
 c_atou_lt3(const char *buf, int len)
 {
@@ -336,35 +334,34 @@ c_init(void)
 }
 
 static ATTR_INLINE unsigned int
-c_step_need(unsigned int *speed, unsigned int speed_last, unsigned int temp)
+c_speed_get(unsigned int last_speed, unsigned int temp)
 {
-	*speed = c_table_temptospeed[temp];
-	DBG(fprintf(stderr, "%s:%d:%s: geting speed: %d.\n", __FILE__, __LINE__, ASSERT_FUNC, *speed));
-	/* Avoid updating if speed has not changed. */
-	return (*speed != speed_last);
+	const unsigned int next_speed = c_table_temptospeed[temp];
+	DBG(fprintf(stderr, "%s:%d:%s: geting curr_speed: %d.\n", __FILE__, __LINE__, ASSERT_FUNC, next_speed));
+	/* Avoid updating if curr_speed has not changed. */
+	return next_speed;
 }
 
 static ATTR_INLINE unsigned int
-c_step(unsigned int speed, unsigned int *speed_last, unsigned int temp)
+c_step(unsigned int *curr_speed, unsigned int last_speed, unsigned int temp, unsigned int hot_secs)
 {
-	if (speed > *speed_last) {
-		/* Maybe ramp up slower. */
-		if (speed > *speed_last - STEPDOWN_MAX)
-			/* This avoids unwanted ramping up for short spikes
-			 * as in opening a browser. */
-			if (c_hot_secs <= SPIKE_MAX && likely(temp < SPIKE_TEMP_MAX)) {
-				++c_hot_secs;
-				DBG(fprintf(stderr, "%s:%d:%s: getting step: %d.\n", __FILE__, __LINE__, ASSERT_FUNC, speed));
-				return *speed_last += STEPUP_SPIKE;
-			}
-	} else { /* speed < *speed_last */
+	unsigned int hot = 0;
+	if (*curr_speed > last_speed) {
+		/* This avoids unwanted ramping up for short spikes
+		 * as in opening a browser. */
+		if (*curr_speed > last_speed - STEPDOWN_MAX
+		    && hot_secs <= SPIKE_MAX
+		    && likely(temp < SPIKE_TEMP_MAX)) {
+			*curr_speed = last_speed + STEPUP_SPIKE;
+			hot = hot_secs + 1;
+			DBG(fprintf(stderr, "%s:%d:%s: getting step: %d.\n", __FILE__, __LINE__, ASSERT_FUNC, *curr_speed));
+		}
+	} else { /* *curr_speed < last_speed */
 		/* Ramp down slower. */
-		speed = MAX(speed, *speed_last - STEPDOWN_MAX);
+		*curr_speed = MAX(*curr_speed, last_speed - STEPDOWN_MAX);
 	}
-	*speed_last = speed;
-	c_hot_secs = 0;
-	DBG(fprintf(stderr, "%s:%d:%s: getting step: %d.\n", __FILE__, __LINE__, ASSERT_FUNC, speed));
-	return speed;
+	DBG(fprintf(stderr, "%s:%d:%s: getting step: %d.\n", __FILE__, __LINE__, ASSERT_FUNC, *curr_speed));
+	return hot;
 }
 
 static void
@@ -372,22 +369,25 @@ c_mainloop(void)
 {
 	/* Avoid underflow. */
 	if (unlikely(STEPDOWN_MAX > c_table_temptospeed[0])) {
-		fprintf(stderr, "%s:%d:%s: STEPDOWN_MAX (%d) must not be greater than the minimum fan speed (%d).\n", __FILE__, __LINE__, ASSERT_FUNC, STEPDOWN_MAX, c_table_temptospeed[0]);
+		fprintf(stderr, "%s:%d:%s: STEPDOWN_MAX (%d) must not be greater than the minimum fan curr_speed (%d).\n", __FILE__, __LINE__, ASSERT_FUNC, STEPDOWN_MAX, c_table_temptospeed[0]);
 		DIE_GRACEFUL();
 	}
-	unsigned int speed_last = c_fanspeed_max_get();
-	unsigned int speed;
+	unsigned int last_speed = c_fanspeed_max_get();
+	unsigned int curr_speed;
 	unsigned int temp;
+	unsigned int hot_secs = 0;
 	for (;;) {
 		temp = c_temp_max_get();
 		if (unlikely(temp == (unsigned int)-1))
 			DIE_GRACEFUL();
+		curr_speed = c_speed_get(last_speed, temp);
 		/* Avoid updating when not necessary. */
-		if (!c_step_need(&speed, speed_last, temp))
+		if (curr_speed == last_speed)
 			goto sleep;
 		/* Get next step. */
-		speed = c_step(speed, &speed_last, temp);
-		if (unlikely(c_speeds_set(speed) == -1))
+		hot_secs = c_step(&curr_speed, last_speed, temp, hot_secs);
+		last_speed = curr_speed;
+		if (unlikely(c_speeds_set(curr_speed) == -1))
 			DIE_GRACEFUL();
 sleep:
 		if (unlikely(sleep(INTERVAL_UPDATE)))
