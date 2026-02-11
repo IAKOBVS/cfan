@@ -26,7 +26,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <signal.h>
-#include <signal.h>
 
 #include "path.h"
 #include "cfan.h"
@@ -91,7 +90,7 @@ c_temp_get(const char *temp_file)
 	if (*(buf + read_sz - 1) == '\n')
 		--read_sz;
 	/* Don't read the milidegrees. */
-	read_sz -= S_LEN("000");
+	read_sz -= (int)S_LEN("000");
 	*(buf + read_sz) = '\0';
 	return c_atou_lt3(buf, read_sz);
 }
@@ -331,7 +330,7 @@ c_init(void)
 }
 
 static ATTR_INLINE unsigned int
-c_speed_get(unsigned int last_speed, unsigned int temp)
+c_speed_get(unsigned int temp)
 {
 	const unsigned int next_speed = c_table_temptospeed[temp];
 	DBG(fprintf(stderr, "%s:%d:%s: geting curr_speed: %d.\n", __FILE__, __LINE__, ASSERT_FUNC, next_speed));
@@ -377,7 +376,7 @@ c_mainloop(void)
 		temp = c_temp_max_get();
 		if (unlikely(temp == (unsigned int)-1))
 			DIE_GRACEFUL();
-		curr_speed = c_speed_get(last_speed, temp);
+		curr_speed = c_speed_get(temp);
 		/* Avoid updating when not necessary. */
 		if (curr_speed == last_speed)
 			goto sleep;
@@ -400,7 +399,7 @@ c_inits(void)
 }
 
 int
-main(int argc, const char **argv)
+main(void)
 {
 	c_sig_setup();
 	c_inits();
