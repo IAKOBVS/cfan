@@ -51,11 +51,6 @@
 /* May not work for older versions of CUDA, in which case, comment it out. */
 #		define USE_NVML_DEVICEGETTEMPERATUREV 1
 
-typedef enum {
-	NV_RET_SUCC = 0,
-	NV_RET_ERR
-} nv_ret_ty;
-
 static nvmlReturn_t
 nv_nvmlDeviceGetTemperature(nvmlDevice_t device, nvmlTemperatureSensors_t sensorType, unsigned int *temp)
 {

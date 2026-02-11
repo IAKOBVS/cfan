@@ -27,9 +27,6 @@
 #include <unistd.h>
 #include <signal.h>
 #include <signal.h>
-#if 0
-#	include <ctype.h>
-#endif
 
 #include "path.h"
 #include "cfan.h"
@@ -343,7 +340,7 @@ c_speed_get(unsigned int last_speed, unsigned int temp)
 }
 
 static ATTR_INLINE unsigned int
-c_step(unsigned int *curr_speed, unsigned int last_speed, unsigned int temp, unsigned int hot_secs)
+c_step_get(unsigned int *curr_speed, unsigned int last_speed, unsigned int temp, unsigned int hot_secs)
 {
 	unsigned int hot = 0;
 	if (*curr_speed > last_speed) {
@@ -385,7 +382,7 @@ c_mainloop(void)
 		if (curr_speed == last_speed)
 			goto sleep;
 		/* Get next step. */
-		hot_secs = c_step(&curr_speed, last_speed, temp, hot_secs);
+		hot_secs = c_step_get(&curr_speed, last_speed, temp, hot_secs);
 		last_speed = curr_speed;
 		if (unlikely(c_speeds_set(curr_speed) == -1))
 			DIE_GRACEFUL();
