@@ -347,17 +347,17 @@ c_step(unsigned int *curr_speed, unsigned int last_speed, unsigned int temp, uns
 {
 	unsigned int hot = 0;
 	if (*curr_speed > last_speed) {
-		/* This avoids unwanted ramping up for short spikes
-		 * as in opening a browser. */
-		if (*curr_speed > last_speed - STEPDOWN_MAX
+		/* Ramp up slower for short spikes.
+		 * This avoids fans ramping up
+		 * when opening a browser. */
+		if (*curr_speed > last_speed + STEPDOWN_MAX
 		    && hot_secs <= SPIKE_MAX
 		    && likely(temp < SPIKE_TEMP_MAX)) {
 			*curr_speed = last_speed + STEPUP_SPIKE;
 			hot = hot_secs + 1;
-			DBG(fprintf(stderr, "%s:%d:%s: getting step: %d.\n", __FILE__, __LINE__, ASSERT_FUNC, *curr_speed));
 		}
 	} else { /* *curr_speed < last_speed */
-		/* Ramp down slower. */
+		/* Always ramp down slower. */
 		*curr_speed = MAX(*curr_speed, last_speed - STEPDOWN_MAX);
 	}
 	DBG(fprintf(stderr, "%s:%d:%s: getting step: %d.\n", __FILE__, __LINE__, ASSERT_FUNC, *curr_speed));
