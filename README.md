@@ -3,7 +3,7 @@ A minimal fan speed controller written in C.
 # Features
 - Zero dependencies: directly uses sysfs from Linux.
 - Silent: does not ramp up for short spikes, as in opening a browser, unless it is already too hot.
-- Custom temperatures: add sysfs temperature files or C functions in table-temp.def.h.
+- Custom temperatures: provide your own temperature files or C functions in table-temp.def.h.
 - Nvidia GPU temperature with NVML (optional).
 # Building
 ```
