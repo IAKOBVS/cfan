@@ -67,7 +67,7 @@ static const unsigned char c_table_temptospeed[] = {
 	/* [44] = */ 51,
 	/* [45] = */ 51,
 
-	/* 46-59c Low Speed Ramp */
+	/* 46-59c: low speed */
 	/* [46] = */ 55,
 	/* [47] = */ 60,
 	/* [48] = */ 65,
