@@ -303,9 +303,9 @@ c_paths_sysfs_resolve(void)
 			if (unlikely(p == NULL))
 				DIE();
 			if (p != tables[i].data[j]) {
-				DBG(fprintf(stderr, "%s:%d:%s: %s doesn't exist, resolved to %s (which is malloc'd).\n", __FILE__, __LINE__, ASSERT_FUNC, tables[i].data[j], p));
 				/* Set new path. */
 				tables[i].data[j] = p;
+				DBG(fprintf(stderr, "%s:%d:%s: %s doesn't exist, resolved to %s (which is malloc'd).\n", __FILE__, __LINE__, ASSERT_FUNC, tables[i].data[j], p));
 			} else {
 				DBG(fprintf(stderr, "%s:%d:%s: %s exists.\n", __FILE__, __LINE__, ASSERT_FUNC, p));
 			}
