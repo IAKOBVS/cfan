@@ -42,9 +42,12 @@ static unsigned int
 c_atou_lt3(const char *buf, int len)
 {
 	if (len == 2)
-		return (unsigned int)((*(buf + 0) - '0') * 10 + (*(buf + 1) - '0'));
+		return (unsigned int)((*(buf + 0) - '0') * 10
+		                      + (*(buf + 1) - '0'));
 	if (len == 3)
-		return (unsigned int)((*(buf + 0) - '0') * 100 + (*(buf + 1) - '0') * 10 + (*(buf + 2) - '0'));
+		return (unsigned int)((*(buf + 0) - '0') * 100
+		                      + (*(buf + 1) - '0') * 10
+		                      + (*(buf + 2) - '0'));
 	/* len == 1 */
 	return (unsigned int)(*(buf + 0) - '0');
 }
