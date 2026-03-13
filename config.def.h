@@ -111,6 +111,7 @@ static const unsigned char c_table_temptospeed[] = {
 
 	/* 82-119c: max speed */
 	/* [82] = */ 255,
+	/* [83] = */ 255,
 	/* [84] = */ 255,
 	/* [85] = */ 255,
 	/* [86] = */ 255,
