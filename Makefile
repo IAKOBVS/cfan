@@ -19,7 +19,7 @@ cfan: $(PROG).c $(REQ)
 	$(CC) -o $@ $(PROG).c $(CFLAGS) $(CPPFLAGS) $(LDFLAGS)
 
 $(PROG)-debug: $(PROG).c $(REQ)
-	$(CC) -o $@ $(PROG).c $(CFLAGS_DEBUG) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS)
+	$(CC) -o $@ $(PROG).c $(CFLAGS_DEBUG) $(CFLAGS) -g $(CPPFLAGS) $(LDFLAGS)
 
 debug: $(PROG)-debug
 

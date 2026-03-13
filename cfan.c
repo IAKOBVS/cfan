@@ -38,6 +38,10 @@
 
 #define STEPUP_SPIKE 4
 
+#define _(x) x
+
+const unsigned char *temptospeed = c_table_temptospeed_med;
+
 static unsigned int
 c_atou_lt3(const char *buf, int len)
 {
@@ -231,12 +235,13 @@ c_speeds_set(unsigned int speed)
 static void
 c_cleanup(void)
 {
-	setbuf(stdout, NULL);
+#if 0
 	if (unlikely(c_speeds_set(FANSPEED_DEFAULT) == -1))
 		DIE_GRACEFUL();
-#if 0
+#else
+	printf("cfan: exiting.\n");
 	for (unsigned int i = 0; i < LEN(c_table_fans_enable); ++i) {
-		printf("Setting auto mode to fan %s.\n", c_table_fans[i]);
+		printf("cfan: setting fan %s to auto mode.\n", c_table_fans[i]);
 		/* Restore mode to auto. */
 		if (unlikely(c_putchar(c_table_fans_enable[i], PWM_ENABLE_AUTO) == -1))
 			DIE_GRACEFUL();
@@ -334,7 +339,7 @@ c_init(void)
 static ATTR_INLINE unsigned int
 c_speed_get(unsigned int temp)
 {
-	const unsigned int next_speed = c_table_temptospeed[temp];
+	const unsigned int next_speed = temptospeed[temp];
 	DBG(fprintf(stderr, "%s:%d:%s: geting curr_speed: %d.\n", __FILE__, __LINE__, ASSERT_FUNC, next_speed));
 	/* Avoid updating if curr_speed has not changed. */
 	return next_speed;
@@ -366,8 +371,8 @@ static void
 c_mainloop(void)
 {
 	/* Avoid underflow. */
-	if (unlikely(STEPDOWN_MAX > c_table_temptospeed[0])) {
-		fprintf(stderr, "%s:%d:%s: STEPDOWN_MAX (%d) must not be greater than the minimum fan curr_speed (%d).\n", __FILE__, __LINE__, ASSERT_FUNC, STEPDOWN_MAX, c_table_temptospeed[0]);
+	if (unlikely(STEPDOWN_MAX > temptospeed[0])) {
+		fprintf(stderr, "%s:%d:%s: STEPDOWN_MAX (%d) must not be greater than the minimum fan curr_speed (%d).\n", __FILE__, __LINE__, ASSERT_FUNC, STEPDOWN_MAX, temptospeed[0]);
 		DIE_GRACEFUL();
 	}
 	unsigned int last_speed = c_fanspeed_max_get();
@@ -400,9 +405,32 @@ c_inits(void)
 		c_table_fn_init[i]();
 }
 
+/* clang-format off */
+
+const char *usage = _("Usage: cfan [OPTIONS]...\n")
+                    _("Options:\n")
+                    _("  --medium\n")
+                    _("    Medium fan speed.\n")
+                    _("  --high\n")
+                    _("    High fan speed.\n");
+
+/* clang-format on */
+
 int
-main(void)
+main(int argc, char **argv)
 {
+	if (argc == 2) {
+		if (!strcmp(argv[1], "--medium")) {
+			printf("cfan: using medium fan speed.\n");
+			temptospeed = c_table_temptospeed_med;
+		} else if (!strcmp(argv[1], "--high")) {
+			printf("cfan: using high fan speed.\n");
+			temptospeed = c_table_temptospeed_high;
+		} else {
+			fprintf(stderr, "%s", usage);
+			exit(EXIT_FAILURE);
+		}
+	}
 	c_sig_setup();
 	c_inits();
 	c_mainloop();
