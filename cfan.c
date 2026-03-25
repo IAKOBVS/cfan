@@ -307,15 +307,17 @@ c_paths_sysfs_resolve(void)
 	 * the real file, given that the number may change between reboots. */
 	for (unsigned int i = 0; i < LEN(tables); ++i) {
 		for (unsigned int j = 0; j < tables[i].len; ++j) {
-			char *p = path_sysfs_resolve(tables[i].data[j]);
-			if (unlikely(p == NULL))
-				DIE();
-			if (p != tables[i].data[j]) {
-				/* Set new path. */
-				tables[i].data[j] = p;
-				DBG(fprintf(stderr, "%s:%d:%s: %s doesn't exist, resolved to %s (which is malloc'd).\n", __FILE__, __LINE__, ASSERT_FUNC, tables[i].data[j], p));
-			} else {
-				DBG(fprintf(stderr, "%s:%d:%s: %s exists.\n", __FILE__, __LINE__, ASSERT_FUNC, p));
+			if (strstr(tables[i].data[j], "/sys/")) {
+				char *p = path_sysfs_resolve(tables[i].data[j]);
+				if (unlikely(p == NULL))
+					DIE();
+				if (p != tables[i].data[j]) {
+					/* Set new path. */
+					tables[i].data[j] = p;
+					DBG(fprintf(stderr, "%s:%d:%s: %s doesn't exist, resolved to %s (which is malloc'd).\n", __FILE__, __LINE__, ASSERT_FUNC, tables[i].data[j], p));
+				} else {
+					DBG(fprintf(stderr, "%s:%d:%s: %s exists.\n", __FILE__, __LINE__, ASSERT_FUNC, p));
+				}
 			}
 		}
 	}
