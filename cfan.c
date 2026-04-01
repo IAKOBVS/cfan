@@ -239,9 +239,9 @@ c_cleanup(void)
 	if (unlikely(c_speeds_set(FANSPEED_DEFAULT) == -1))
 		DIE_GRACEFUL();
 #else
-	printf("cfan: exiting.\n");
+	/* printf("cfan: exiting.\n"); */
 	for (unsigned int i = 0; i < LEN(c_table_fans_enable); ++i) {
-		printf("cfan: setting fan %s to auto mode.\n", c_table_fans[i]);
+		/* printf("cfan: setting fan %s to auto mode.\n", c_table_fans[i]); */
 		/* Restore mode to auto. */
 		if (unlikely(c_putchar(c_table_fans_enable[i], PWM_ENABLE_AUTO) == -1))
 			DIE_GRACEFUL();
