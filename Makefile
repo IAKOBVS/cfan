@@ -13,7 +13,10 @@ PROG = cfan
 PREFIX = /usr/local
 CC = cc
 
-all: $(PROG)
+all: $(PROG) cfan-print
+
+cfan-print: cfan-print.c $(REQ) $(PROG)
+	$(CC) -o $@ cfan-print.c $(CFLAGS) $(CPPFLAGS) $(LDFLAGS)
 
 cfan: $(PROG).c $(REQ)
 	$(CC) -o $@ $(PROG).c $(CFLAGS) $(CPPFLAGS) $(LDFLAGS)
@@ -33,7 +36,7 @@ table-temp.h:
 	cp table-temp.def.h $@
 
 clean:
-	rm -f $(PROG)
+	rm -f $(PROG) cfan-print
 
 install: $(PROG) cfan-set-pwm
 	strip $(PROG)
