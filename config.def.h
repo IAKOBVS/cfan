@@ -11,6 +11,8 @@
 #	define STEPDOWN_MAX 8
 /* Amount of seconds to wait before significantly ramping up in fan speed. */
 #	define SPIKE_MAX 3
+/* Set speed to this value on exit. */
+#	define FANSPEED_DEFAULT 60
 /* Set temperature to allow fans to instantly ramp up signifcantly. */
 #	define SPIKE_TEMP_MAX 70
 #	define FAN_CURVE_DEFAULT c_table_temptospeed_med
