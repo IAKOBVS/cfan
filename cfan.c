@@ -40,7 +40,7 @@
 
 #define _(x) x
 
-const unsigned char *temptospeed = c_table_temptospeed_med;
+const unsigned char *temptospeed = FAN_CURVE_DEFAULT;
 
 static unsigned int
 c_atou_lt3(const char *buf, int len)
@@ -249,28 +249,10 @@ c_cleanup(void)
 #endif
 }
 
-#ifdef EXIT_SLOW
-static void
-c_cleanup_slow(void)
-{
-	setbuf(stdout, NULL);
-	for (unsigned int speed = c_fanspeed_get(c_table_fans[0]); speed > FANSPEED_DEFAULT; speed -= 10) {
-		if (unlikely(c_speeds_set(speed) == -1))
-			DIE_GRACEFUL();
-		if (unlikely(sleep(1)))
-			DIE_GRACEFUL();
-	}
-}
-#endif
-
 void
 c_exit(int status)
 {
-#ifdef EXIT_SLOW
-	c_cleanup_slow();
-#else
 	c_cleanup();
-#endif
 	_Exit(status);
 }
 

@@ -3,7 +3,7 @@
 int
 main()
 {
-#define table c_table_temptospeed_med
+#define table FAN_CURVE_DEFAULT
 /* #define table c_table_temptospeed_high */
 	for (unsigned int i = 0; i < sizeof(table); ++i) {
 		const char *space;
