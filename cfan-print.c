@@ -7,25 +7,9 @@
 
 #define table_len sizeof(c_table_temptospeed_med) 
 
-int
-main()
+void
+print_table(const unsigned char *table)
 {
-	int fd = open(CFAN_PATH "/" CFAN_FILE_CURVE, O_RDONLY);
-	assert(fd != -1);
-	char curve[4096];
-	int read_sz = read(fd, curve, sizeof(curve));
-	assert(read_sz != -1);
-	assert(close(fd) != -1);
-	char *p = strchr(curve, '\n');
-	if (p) {
-		*p = '\0';
-		--read_sz;
-	}
-	const unsigned char *table = FAN_CURVE_DEFAULT;
-	if (!strcmp(curve, "medium"))
-		table = c_table_temptospeed_med;
-	else if (!strcmp(curve, "high"))
-		table = c_table_temptospeed_high;
 	for (unsigned int i = 0; i < table_len; ++i) {
 		const char *space;
 		if (i <= 9)
@@ -74,5 +58,32 @@ main()
 		}
 	}
 	putchar('\n');
+}
+
+const unsigned char *find_curve()
+{
+	int fd = open(CFAN_PATH "/" CFAN_FILE_CURVE, O_RDONLY);
+	assert(fd != -1);
+	char curve[4096];
+	int read_sz = read(fd, curve, sizeof(curve));
+	assert(read_sz != -1);
+	assert(close(fd) != -1);
+	char *p = strchr(curve, '\n');
+	if (p) {
+		*p = '\0';
+		--read_sz;
+	}
+	const unsigned char *table = FAN_CURVE_DEFAULT;
+	if (!strcmp(curve, "medium"))
+		table = c_table_temptospeed_med;
+	else if (!strcmp(curve, "high"))
+		table = c_table_temptospeed_high;
+	return table;
+}
+
+int
+main()
+{
+	print_table(find_curve());
 	return 0;
 }
