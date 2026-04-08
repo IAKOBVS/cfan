@@ -244,12 +244,12 @@ c_mode_setup()
 		exit(EXIT_FAILURE);
 	}
 	if (temptospeed == c_table_temptospeed_med) {
-		if (unlikely(c_puts_len(CFAN_PATH "/" CFAN_FILE_CURVE, S_LITERAL("medium")) == -1)) {
+		if (unlikely(c_puts_len(CFAN_PATH "/" CFAN_FILE_CURVE, S_LITERAL("medium\n")) == -1)) {
 			fprintf(stderr, "cfan: can't write to %s.\n", CFAN_PATH "/" CFAN_FILE_CURVE);
 			exit(EXIT_FAILURE);
 		}
 	} else if (temptospeed == c_table_temptospeed_high) {
-		if (unlikely(c_puts_len(CFAN_PATH "/" CFAN_FILE_CURVE, S_LITERAL("high")) == -1)) {
+		if (unlikely(c_puts_len(CFAN_PATH "/" CFAN_FILE_CURVE, S_LITERAL("high\n")) == -1)) {
 			fprintf(stderr, "cfan: can't write to %s.\n", CFAN_PATH "/" CFAN_FILE_CURVE);
 			exit(EXIT_FAILURE);
 		}
