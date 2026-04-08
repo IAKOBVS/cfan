@@ -6,6 +6,8 @@
 #include <string.h>
 
 #define table_len sizeof(c_table_temptospeed_med) 
+#define FAN_CURVE_MEDIUM c_table_temptospeed_med
+#define FAN_CURVE_HIGH c_table_temptospeed_high
 
 void
 print_table(const unsigned char *table)
@@ -75,9 +77,9 @@ const unsigned char *find_curve()
 	}
 	const unsigned char *table = FAN_CURVE_DEFAULT;
 	if (!strcmp(curve, "medium"))
-		table = c_table_temptospeed_med;
+		table = FAN_CURVE_MEDIUM;
 	else if (!strcmp(curve, "high"))
-		table = c_table_temptospeed_high;
+		table = FAN_CURVE_HIGH;
 	return table;
 }
 

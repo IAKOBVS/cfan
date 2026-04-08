@@ -254,6 +254,10 @@ c_mode_setup()
 			exit(EXIT_FAILURE);
 		}
 	}
+	if (unlikely(chmod(CFAN_PATH "/" CFAN_FILE_CURVE, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH) == -1)) {
+		fprintf(stderr, "cfan: can't chmod %s.\n", CFAN_PATH "/" CFAN_FILE_CURVE);
+		exit(EXIT_FAILURE);
+	}
 }
 
 static void
