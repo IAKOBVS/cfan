@@ -17,6 +17,10 @@
 #	define SPIKE_TEMP_MAX 70
 #	define FAN_CURVE_DEFAULT c_table_temptospeed_med
 
+#	define CFAN_PATH "/tmp/cfan"
+#	define CFAN_FILE_CURVE "curve"
+#	define CFAN_FILE_LOCK "cfan.lock"
+
 /* Fan speed: 0-255
  * c_table_temptospeed[temperature] = speed */
 static const unsigned char c_table_temptospeed_med[] = {

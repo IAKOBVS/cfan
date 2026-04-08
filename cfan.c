@@ -27,6 +27,8 @@
 #include <unistd.h>
 #include <signal.h>
 
+#include <sys/stat.h>
+
 #include "path.h"
 #include "cfan.h"
 #include "macros.h"
@@ -182,7 +184,7 @@ c_fanspeed_max_get(void)
 static int
 c_puts_len(const char *filename, const char *buf, unsigned int len)
 {
-	int fd = open(filename, O_WRONLY);
+	int fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC);
 	if (unlikely(fd == -1))
 		return -1;
 	int write_sz = write(fd, buf, len);
@@ -233,6 +235,45 @@ c_speeds_set(unsigned int speed)
 }
 
 static void
+c_mode_setup()
+{
+	if (mkdir(CFAN_PATH, 0777) != 0)
+		assert(errno == EEXIST);
+	if (unlikely(c_puts_len(CFAN_PATH "/" CFAN_FILE_LOCK, "", 0) == -1)) {
+		fprintf(stderr, "cfan: another instance is already running.\n");
+		exit(EXIT_FAILURE);
+	}
+	if (temptospeed == c_table_temptospeed_med) {
+		if (unlikely(c_puts_len(CFAN_PATH "/" CFAN_FILE_CURVE, S_LITERAL("medium")) == -1)) {
+			fprintf(stderr, "cfan: can't write to %s.\n", CFAN_PATH "/" CFAN_FILE_CURVE);
+			exit(EXIT_FAILURE);
+		}
+	} else if (temptospeed == c_table_temptospeed_high) {
+		if (unlikely(c_puts_len(CFAN_PATH "/" CFAN_FILE_CURVE, S_LITERAL("high")) == -1)) {
+			fprintf(stderr, "cfan: can't write to %s.\n", CFAN_PATH "/" CFAN_FILE_CURVE);
+			exit(EXIT_FAILURE);
+		}
+	}
+}
+
+static void
+c_mode_cleanup()
+{
+	if (unlikely(unlink(CFAN_PATH "/" CFAN_FILE_CURVE) == -1)) {
+		fprintf(stderr, "cfan: can't remove %s.\n", CFAN_PATH "/" CFAN_FILE_CURVE);
+		exit(EXIT_FAILURE);
+	}
+	if (unlikely(unlink(CFAN_PATH "/" CFAN_FILE_LOCK) == -1)) {
+		fprintf(stderr, "cfan: can't remove %s.\n", CFAN_PATH "/" CFAN_FILE_LOCK);
+		exit(EXIT_FAILURE);
+	}
+	if (unlikely(rmdir(CFAN_PATH) == -1)) {
+		fprintf(stderr, "cfan: can't remove %s.\n", CFAN_PATH);
+		exit(EXIT_FAILURE);
+	}
+}
+
+static void
 c_cleanup(void)
 {
 	for (unsigned int i = 0; i < LEN(c_table_fans_enable); ++i) {
@@ -240,6 +281,7 @@ c_cleanup(void)
 		if (unlikely(c_putchar(c_table_fans_enable[i], PWM_ENABLE_AUTO) == -1))
 			DIE_GRACEFUL();
 	}
+	c_mode_cleanup();
 }
 
 void
@@ -409,6 +451,7 @@ main(int argc, char **argv)
 		}
 	}
 	c_sig_setup();
+	c_mode_setup();
 	c_inits();
 	c_mainloop();
 	return EXIT_SUCCESS;
