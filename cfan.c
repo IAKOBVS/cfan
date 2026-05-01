@@ -184,7 +184,7 @@ c_fanspeed_max_get(void)
 static int
 c_puts_len(const char *filename, const char *buf, unsigned int len)
 {
-	int fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC);
+	int fd = open(filename, O_WRONLY | O_CREAT);
 	if (unlikely(fd == -1))
 		return -1;
 	int write_sz = write(fd, buf, len);
