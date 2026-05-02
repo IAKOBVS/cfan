@@ -182,9 +182,9 @@ c_fanspeed_max_get(void)
 }
 
 static int
-c_puts_len(const char *filename, const char *buf, unsigned int len)
+c_puts_len(const char *filename, int oflag, const char *buf, unsigned int len)
 {
-	int fd = open(filename, O_WRONLY | O_CREAT);
+	int fd = open(filename, O_WRONLY | oflag);
 	if (unlikely(fd == -1))
 		return -1;
 	int write_sz = write(fd, buf, len);
@@ -200,13 +200,13 @@ c_puts_len(const char *filename, const char *buf, unsigned int len)
 static ATTR_INLINE int
 c_speed_set(const char *fan_file, const char *buf, unsigned int len)
 {
-	return c_puts_len(fan_file, buf, len);
+	return c_puts_len(fan_file, 0, buf, len);
 }
 
 static ATTR_INLINE int
 c_putchar(const char *filename, char c)
 {
-	return c_puts_len(filename, &c, 1);
+	return c_puts_len(filename, 0, &c, 1);
 }
 
 enum {
@@ -239,17 +239,17 @@ c_mode_setup()
 {
 	if (mkdir(CFAN_PATH, 0777) != 0)
 		assert(errno == EEXIST);
-	if (unlikely(c_puts_len(CFAN_PATH "/" CFAN_FILE_LOCK, "", 0) == -1)) {
+	if (unlikely(c_puts_len(CFAN_PATH "/" CFAN_FILE_LOCK, O_CREAT | O_EXCL, "", 0) == -1)) {
 		fprintf(stderr, "cfan: another instance is already running.\n");
 		exit(EXIT_FAILURE);
 	}
 	if (temptospeed == c_table_temptospeed_med) {
-		if (unlikely(c_puts_len(CFAN_PATH "/" CFAN_FILE_CURVE, S_LITERAL("medium\n")) == -1)) {
+		if (unlikely(c_puts_len(CFAN_PATH "/" CFAN_FILE_CURVE, O_CREAT | O_EXCL, S_LITERAL("medium\n")) == -1)) {
 			fprintf(stderr, "cfan: can't write to %s.\n", CFAN_PATH "/" CFAN_FILE_CURVE);
 			exit(EXIT_FAILURE);
 		}
 	} else if (temptospeed == c_table_temptospeed_high) {
-		if (unlikely(c_puts_len(CFAN_PATH "/" CFAN_FILE_CURVE, S_LITERAL("high\n")) == -1)) {
+		if (unlikely(c_puts_len(CFAN_PATH "/" CFAN_FILE_CURVE, O_CREAT | O_EXCL, S_LITERAL("high\n")) == -1)) {
 			fprintf(stderr, "cfan: can't write to %s.\n", CFAN_PATH "/" CFAN_FILE_CURVE);
 			exit(EXIT_FAILURE);
 		}
