@@ -46,65 +46,6 @@ static int c_fan_fds[LEN(c_table_fans)];
 
 const unsigned char *temptospeed = FAN_CURVE_DEFAULT;
 
-static unsigned int
-c_atou_lt3(const char *buf, int len)
-{
-	if (len == 2)
-		return (unsigned int)((*(buf + 0) - '0') * 10
-		                      + (*(buf + 1) - '0'));
-	if (len == 3)
-		return (unsigned int)((*(buf + 0) - '0') * 100
-		                      + (*(buf + 1) - '0') * 10
-		                      + (*(buf + 2) - '0'));
-	/* len == 1 */
-	return (unsigned int)(*(buf + 0) - '0');
-}
-
-static char *
-c_utoa_lt3_p(unsigned int num, char *buf)
-{
-	/* digits == 2 */
-	if (likely((unsigned int)(num - 10) < 90)) {
-		*(buf + 0) = (num / 10) + '0';
-		*(buf + 1) = (num % 10) + '0';
-		*(buf + 2) = '\0';
-		return buf + 2;
-	}
-	/* digits == 3 */
-	if (num > 99) {
-		*(buf + 0) = (num / 100) + '0';
-		*(buf + 1) = ((num / 10) % 10) + '0';
-		*(buf + 2) = (num % 10) + '0';
-		*(buf + 3) = '\0';
-		return buf + 3;
-	}
-	/* digits == 1 */
-	*(buf + 0) = num + '0';
-	*(buf + 1) = '\0';
-	return buf + 1;
-}
-
-static unsigned int
-c_temp_get(const char *temp_file)
-{
-	int fd = open(temp_file, O_RDONLY);
-	if (unlikely(fd == -1))
-		return (unsigned int)-1;
-	/* Milidegrees = degrees * 1000 */
-	char buf[S_LEN("100") + S_LEN("000") + S_LEN("\n")];
-	int read_sz = read(fd, buf, sizeof(buf));
-	if (unlikely(close(fd) == -1))
-		return (unsigned int)-1;
-	if (unlikely(read_sz == -1))
-		return (unsigned int)-1;
-	/* Don't read the newline. */
-	if (*(buf + read_sz - 1) == '\n')
-		--read_sz;
-	/* Don't read the milidegrees. */
-	read_sz -= (int)S_LEN("000");
-	*(buf + read_sz) = '\0';
-	return c_atou_lt3(buf, read_sz);
-}
 
 static unsigned int
 c_temp_fd_get(int fd)
@@ -125,10 +66,7 @@ c_temp_sysfs_max_get(void)
 {
 	unsigned int max = 0;
 	for (unsigned int i = 0, curr; i < LEN(c_table_temps); ++i) {
-		if (c_temp_fds[i] != -1)
-			curr = c_temp_fd_get(c_temp_fds[i]);
-		else
-			curr = c_temp_get(c_table_temps[i]);
+		curr = c_temp_fd_get(c_temp_fds[i]);
 		if (unlikely(curr == (unsigned int)-1))
 			return (unsigned int)-1;
 		max = MAX(max, curr);
@@ -217,12 +155,6 @@ c_puts_len(const char *filename, int oflag, const char *buf, unsigned int len)
 }
 
 static ATTR_INLINE int
-c_speed_set(const char *fan_file, const char *buf, unsigned int len)
-{
-	return c_puts_len(fan_file, 0, buf, len);
-}
-
-static ATTR_INLINE int
 c_putchar(const char *filename, int oflag, char c)
 {
 	return c_puts_len(filename, oflag, &c, 1);
@@ -247,10 +179,7 @@ c_speeds_set(unsigned int speed)
 #endif
 	for (unsigned int i = 0; i < LEN(c_table_fans); ++i) {
 		DBG(fprintf(stderr, "%s:%d:%s: setting speed: %s to fan %s.\n", __FILE__, __LINE__, ASSERT_FUNC, speeds, c_table_fans[i]));
-		if (c_fan_fds[i] != -1) {
-			if (unlikely(pwrite(c_fan_fds[i], speeds, speeds_len, 0) != (ssize_t)speeds_len))
-				DIE_GRACEFUL(return -1);
-		} else if (unlikely(c_speed_set(c_table_fans[i], speeds, speeds_len) == -1))
+		if (unlikely(pwrite(c_fan_fds[i], speeds, speeds_len, 0) != (ssize_t)speeds_len))
 			DIE_GRACEFUL(return -1);
 	}
 	return 0;
@@ -311,9 +240,9 @@ c_cleanup(void)
 			DIE_GRACEFUL();
 	}
 	for (unsigned int i = 0; i < LEN(c_table_fans); ++i)
-		if (c_fan_fds[i] != -1) close(c_fan_fds[i]);
+		close(c_fan_fds[i]);
 	for (unsigned int i = 0; i < LEN(c_table_temps); ++i)
-		if (c_temp_fds[i] != -1) close(c_temp_fds[i]);
+		close(c_temp_fds[i]);
 	c_mode_cleanup();
 }
 
@@ -386,9 +315,11 @@ c_init(void)
 {
 	c_paths_sysfs_resolve();
 	for (unsigned int i = 0; i < LEN(c_table_temps); ++i)
-		c_temp_fds[i] = open(c_table_temps[i], O_RDONLY);
+		if (unlikely((c_temp_fds[i] = open(c_table_temps[i], O_RDONLY)) == -1))
+			DIE_GRACEFUL();
 	for (unsigned int i = 0; i < LEN(c_table_fans); ++i)
-		c_fan_fds[i] = open(c_table_fans[i], O_WRONLY);
+		if (unlikely((c_fan_fds[i] = open(c_table_fans[i], O_WRONLY)) == -1))
+			DIE_GRACEFUL();
 	c_fans_enable();
 }
 
