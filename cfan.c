@@ -24,7 +24,6 @@
 #include <unistd.h>
 #include <assert.h>
 #include <fcntl.h>
-#include <unistd.h>
 #include <signal.h>
 
 #include <sys/stat.h>
@@ -37,6 +36,9 @@
 
 #include "table-fans.generated.h"
 #include "cpu.generated.h"
+
+static int c_temp_fds[LEN(c_table_temps)];
+static int c_fan_fds[LEN(c_table_fans)];
 
 #define STEPUP_SPIKE 4
 
@@ -104,12 +106,29 @@ c_temp_get(const char *temp_file)
 	return c_atou_lt3(buf, read_sz);
 }
 
+static unsigned int
+c_temp_fd_get(int fd)
+{
+	char buf[S_LEN("100") + S_LEN("000") + S_LEN("\n")];
+	int read_sz = pread(fd, buf, sizeof(buf), 0);
+	if (unlikely(read_sz == -1))
+		return (unsigned int)-1;
+	if (*(buf + read_sz - 1) == '\n')
+		--read_sz;
+	read_sz -= (int)S_LEN("000");
+	*(buf + read_sz) = '\0';
+	return c_atou_lt3(buf, read_sz);
+}
+
 unsigned int
 c_temp_sysfs_max_get(void)
 {
 	unsigned int max = 0;
 	for (unsigned int i = 0, curr; i < LEN(c_table_temps); ++i) {
-		curr = c_temp_get(c_table_temps[i]);
+		if (c_temp_fds[i] != -1)
+			curr = c_temp_fd_get(c_temp_fds[i]);
+		else
+			curr = c_temp_get(c_table_temps[i]);
 		if (unlikely(curr == (unsigned int)-1))
 			return (unsigned int)-1;
 		max = MAX(max, curr);
@@ -204,9 +223,9 @@ c_speed_set(const char *fan_file, const char *buf, unsigned int len)
 }
 
 static ATTR_INLINE int
-c_putchar(const char *filename, char c)
+c_putchar(const char *filename, int oflag, char c)
 {
-	return c_puts_len(filename, 0, &c, 1);
+	return c_puts_len(filename, oflag, &c, 1);
 }
 
 enum {
@@ -228,7 +247,10 @@ c_speeds_set(unsigned int speed)
 #endif
 	for (unsigned int i = 0; i < LEN(c_table_fans); ++i) {
 		DBG(fprintf(stderr, "%s:%d:%s: setting speed: %s to fan %s.\n", __FILE__, __LINE__, ASSERT_FUNC, speeds, c_table_fans[i]));
-		if (unlikely(c_speed_set(c_table_fans[i], speeds, speeds_len) == -1))
+		if (c_fan_fds[i] != -1) {
+			if (unlikely(pwrite(c_fan_fds[i], speeds, speeds_len, 0) != (ssize_t)speeds_len))
+				DIE_GRACEFUL(return -1);
+		} else if (unlikely(c_speed_set(c_table_fans[i], speeds, speeds_len) == -1))
 			DIE_GRACEFUL(return -1);
 	}
 	return 0;
@@ -280,11 +302,18 @@ c_mode_cleanup()
 static void
 c_cleanup(void)
 {
+	/* Set safe speed before restoring auto mode to avoid fan spike. */
+	if (unlikely(c_speeds_set(FANSPEED_DEFAULT) == -1))
+		DIE_GRACEFUL();
 	for (unsigned int i = 0; i < LEN(c_table_fans_enable); ++i) {
 		/* Restore mode to auto. */
-		if (unlikely(c_putchar(c_table_fans_enable[i], PWM_ENABLE_AUTO) == -1))
+		if (unlikely(c_putchar(c_table_fans_enable[i], 0, PWM_ENABLE_AUTO) == -1))
 			DIE_GRACEFUL();
 	}
+	for (unsigned int i = 0; i < LEN(c_table_fans); ++i)
+		if (c_fan_fds[i] != -1) close(c_fan_fds[i]);
+	for (unsigned int i = 0; i < LEN(c_table_temps); ++i)
+		if (c_temp_fds[i] != -1) close(c_temp_fds[i]);
 	c_mode_cleanup();
 }
 
@@ -348,7 +377,7 @@ static void
 c_fans_enable(void)
 {
 	for (unsigned int i = 0; i < LEN(c_table_fans_enable); ++i)
-		if (unlikely(c_putchar(c_table_fans_enable[i], PWM_ENABLE_MANUAL)))
+		if (unlikely(c_putchar(c_table_fans_enable[i], 0, PWM_ENABLE_MANUAL)))
 			DIE_GRACEFUL();
 }
 
@@ -356,6 +385,10 @@ void
 c_init(void)
 {
 	c_paths_sysfs_resolve();
+	for (unsigned int i = 0; i < LEN(c_table_temps); ++i)
+		c_temp_fds[i] = open(c_table_temps[i], O_RDONLY);
+	for (unsigned int i = 0; i < LEN(c_table_fans); ++i)
+		c_fan_fds[i] = open(c_table_fans[i], O_WRONLY);
 	c_fans_enable();
 }
 
@@ -432,6 +465,8 @@ c_inits(void)
 
 const char *usage = _("Usage: cfan [OPTIONS]...\n")
                     _("Options:\n")
+                    _("  --help\n")
+                    _("    Show this help.\n")
                     _("  --medium\n")
                     _("    Medium fan speed.\n")
                     _("  --high\n")
@@ -443,7 +478,10 @@ int
 main(int argc, char **argv)
 {
 	if (argc == 2) {
-		if (!strcmp(argv[1], "--medium")) {
+		if (!strcmp(argv[1], "--help")) {
+			printf("%s", usage);
+			exit(EXIT_SUCCESS);
+		} else if (!strcmp(argv[1], "--medium")) {
 			printf("cfan: using medium fan speed.\n");
 			temptospeed = c_table_temptospeed_med;
 		} else if (!strcmp(argv[1], "--high")) {

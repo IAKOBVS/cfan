@@ -10,12 +10,6 @@
 #		define DBG(x)
 #	endif
 
-#	ifdef __ASSERT_FUNCTION
-#		define ASSERT_FUNC __ASSERT_FUNCTION
-#	else
-#		define ASSERT_FUNC __func__
-#	endif
-
 #	define MAX(x, y)    (((x) > (y)) ? (x) : (y))
 #	define MIN(x, y)    (((x) < (y)) ? (x) : (y))
 #	define LEN(X)       (sizeof(X) / sizeof(X[0]))
