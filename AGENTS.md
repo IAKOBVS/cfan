@@ -23,6 +23,8 @@ sudo make install # strips, installs to /usr/local/bin
 |------|------|
 | `cfan.c` | Main loop: reads temps, picks fan speed from curve, writes PWM |
 | `cfan-print.c` | Visualizes active fan curve |
+| `step.h` | Fan speed ramping logic (`c_step_get`) |
+| `temp.h` | Sysfs millidegree temperature parsing (`c_temp_fd_get`) |
 | `config.h` / `config.mk` | User-local config (gitignored, copied from `config.def.*`) |
 | `table-temp.h` | User-local temp sensor list (gitignored, copied from `table-temp.def.h`) |
 | `table-temp.def.h` | Default sensor config (CPU only) |
@@ -45,7 +47,7 @@ sudo make install # strips, installs to /usr/local/bin
 
 ## Testing & linting
 
-- No test suite exists.
+- Unit tests: `make test` (builds) / `make check` (build + run). Tests `c_atou_lt3`, `c_utoa_lt3_p` (from `util.h`), `c_temp_fd_get` (from `temp.h`), and `c_step_get` (from `step.h`). 17 tests total.
 - The Makefile compiles with `-fanalyzer -Warray-bounds -Wnull-dereference -Wformat -Wunused -Wwrite-strings`. These serve as the linting step.
 - No formatter config (no `.clang-format`). Keep style consistent with existing files.
 

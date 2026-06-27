@@ -5,7 +5,7 @@ include config.mk
 LDFLAGS += $(LDFLAGS_CUDA)
 REQ += $(REQ_CUDA)
 
-REQ += config.h cpu.generated.h table-fans.generated.h table-temp.h path.h
+REQ += config.h cpu.generated.h table-fans.generated.h table-temp.h path.h step.h temp.h
 
 CFLAGS_DEBUG = -DDEBUG=1 -DEXIT_SLOW=1
 CFLAGS = -O2 -march=native -flto -fanalyzer -Wno-unknown-warning-option -Warray-bounds -Wnull-dereference -Wformat -Wunused -Wwrite-strings
@@ -35,8 +35,14 @@ config.h:
 table-temp.h:
 	cp table-temp.def.h $@
 
+test: test.c util.h step.h temp.h config.h
+	$(CC) -o $@ test.c $(CFLAGS) $(CPPFLAGS)
+
+check: test
+	./test
+
 clean:
-	rm -f $(PROG) cfan-print
+	rm -f $(PROG) cfan-print test
 
 install: $(PROG) cfan-set-pwm cfan-print
 	strip $(PROG)

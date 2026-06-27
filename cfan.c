@@ -31,7 +31,10 @@
 #include "path.h"
 #include "cfan.h"
 #include "macros.h"
+#include "util.h"
 #include "config.h"
+#include "temp.h"
+#include "step.h"
 #include "table-temp.h"
 
 #include "table-fans.generated.h"
@@ -40,26 +43,10 @@
 static int c_temp_fds[LEN(c_table_temps)];
 static int c_fan_fds[LEN(c_table_fans)];
 
-#define STEPUP_SPIKE 4
-
 #define _(x) x
 
 const unsigned char *temptospeed = FAN_CURVE_DEFAULT;
 
-
-static unsigned int
-c_temp_fd_get(int fd)
-{
-	char buf[S_LEN("100") + S_LEN("000") + S_LEN("\n")];
-	int read_sz = pread(fd, buf, sizeof(buf), 0);
-	if (unlikely(read_sz == -1))
-		return (unsigned int)-1;
-	if (*(buf + read_sz - 1) == '\n')
-		--read_sz;
-	read_sz -= (int)S_LEN("000");
-	*(buf + read_sz) = '\0';
-	return c_atou_lt3(buf, read_sz);
-}
 
 unsigned int
 c_temp_sysfs_max_get(void)
@@ -330,28 +317,6 @@ c_speed_get(unsigned int temp)
 	DBG(fprintf(stderr, "%s:%d:%s: geting curr_speed: %d.\n", __FILE__, __LINE__, ASSERT_FUNC, next_speed));
 	/* Avoid updating if curr_speed has not changed. */
 	return next_speed;
-}
-
-static ATTR_INLINE unsigned int
-c_step_get(unsigned int *curr_speed, unsigned int last_speed, unsigned int temp, unsigned int hot_secs)
-{
-	unsigned int hot = 0;
-	if (*curr_speed > last_speed) {
-		/* Ramp up slower for short spikes.
-		 * This avoids fans ramping up
-		 * when opening a browser. */
-		if (*curr_speed > last_speed + STEPDOWN_MAX
-		    && hot_secs <= SPIKE_MAX
-		    && likely(temp < SPIKE_TEMP_MAX)) {
-			*curr_speed = last_speed + STEPUP_SPIKE;
-			hot = hot_secs + 1;
-		}
-	} else { /* *curr_speed < last_speed */
-		/* Always ramp down slower. */
-		*curr_speed = MAX(*curr_speed, last_speed - STEPDOWN_MAX);
-	}
-	DBG(fprintf(stderr, "%s:%d:%s: getting step: %d.\n", __FILE__, __LINE__, ASSERT_FUNC, *curr_speed));
-	return hot;
 }
 
 static void
