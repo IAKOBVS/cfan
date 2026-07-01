@@ -9,7 +9,10 @@ static unsigned int
 c_temp_fd_get(int fd)
 {
 	char buf[S_LEN("100") + S_LEN("000") + S_LEN("\n")];
-	int read_sz = pread(fd, buf, sizeof(buf), 0);
+	int read_sz;
+	do {
+		read_sz = pread(fd, buf, sizeof(buf), 0);
+	} while (unlikely(read_sz == -1) && errno == EINTR);
 	if (unlikely(read_sz == -1))
 		return (unsigned int)-1;
 	if (*(buf + read_sz - 1) == '\n')

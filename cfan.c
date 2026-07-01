@@ -42,6 +42,7 @@
 
 static int c_temp_fds[LEN(c_table_temps)];
 static int c_fan_fds[LEN(c_table_fans)];
+static volatile sig_atomic_t c_sig_caught;
 
 #define _(x) x
 
@@ -52,14 +53,18 @@ unsigned int
 c_temp_sysfs_max_get(void)
 {
 	unsigned int max = 0;
+	unsigned int valid = 0;
 	for (unsigned int i = 0, curr; i < LEN(c_table_temps); ++i) {
 		curr = c_temp_fd_get(c_temp_fds[i]);
-		if (unlikely(curr == (unsigned int)-1))
-			return (unsigned int)-1;
+		if (unlikely(curr == (unsigned int)-1)) {
+			DBG(fprintf(stderr, "%s:%d:%s: failed to get temperature from %s.\n", __FILE__, __LINE__, ASSERT_FUNC, c_table_temps[i]));
+			continue;
+		}
 		max = MAX(max, curr);
+		++valid;
 		DBG(fprintf(stderr, "%s:%d:%s: getting temperature: %d from %s.\n", __FILE__, __LINE__, ASSERT_FUNC, curr, c_table_temps[i]));
 	}
-	return max;
+	return (valid == 0) ? (unsigned int)-1 : max;
 }
 
 static ATTR_INLINE unsigned int
@@ -67,13 +72,17 @@ c_temp_max_get(void)
 {
 	unsigned int curr;
 	unsigned int max = 0;
+	unsigned int valid = 0;
 	for (unsigned int i = 0; i < LEN(c_table_fn_temps); ++i) {
 		curr = c_table_fn_temps[i]();
 		if (unlikely(curr == (unsigned int)-1))
-			return (unsigned int)-1;
+			continue;
 		if (curr > max)
 			max = curr;
+		++valid;
 	}
+	if (unlikely(valid == 0))
+		return (unsigned int)-1;
 	DBG(fprintf(stderr, "%s:%d:%s: getting max temperature: %d.\n", __FILE__, __LINE__, ASSERT_FUNC, max));
 	return max;
 }
@@ -243,7 +252,7 @@ c_exit(int status)
 static void
 c_sig_handler(int signum)
 {
-	c_exit(EXIT_SUCCESS);
+	c_sig_caught = 1;
 	(void)signum;
 }
 
@@ -302,8 +311,12 @@ c_init(void)
 {
 	c_paths_sysfs_resolve();
 	for (unsigned int i = 0; i < LEN(c_table_temps); ++i)
-		if (unlikely((c_temp_fds[i] = open(c_table_temps[i], O_RDONLY)) == -1))
-			DIE_GRACEFUL();
+		for (unsigned int retry = 3; retry; --retry)
+			if (unlikely((c_temp_fds[i] = open(c_table_temps[i], O_RDONLY)) == -1)) {
+				if (retry != 0)
+					sleep(1);
+				DIE_GRACEFUL();
+			}
 	for (unsigned int i = 0; i < LEN(c_table_fans); ++i)
 		if (unlikely((c_fan_fds[i] = open(c_table_fans[i], O_WRONLY)) == -1))
 			DIE_GRACEFUL();
@@ -332,6 +345,8 @@ c_mainloop(void)
 	unsigned int temp;
 	unsigned int hot_secs = 0;
 	for (;;) {
+		if (c_sig_caught)
+			break;
 		temp = c_temp_max_get();
 		if (unlikely(temp == (unsigned int)-1))
 			DIE_GRACEFUL();
@@ -346,7 +361,7 @@ c_mainloop(void)
 			DIE_GRACEFUL();
 sleep:
 		if (unlikely(sleep(INTERVAL_UPDATE)))
-			DIE_GRACEFUL();
+			continue;
 	}
 }
 
@@ -392,5 +407,6 @@ main(int argc, char **argv)
 	c_mode_setup();
 	c_inits();
 	c_mainloop();
+	c_cleanup();
 	return EXIT_SUCCESS;
 }
