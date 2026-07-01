@@ -25,6 +25,7 @@
 #include <assert.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <time.h>
 
 #include <sys/stat.h>
 
@@ -43,6 +44,7 @@
 static int c_temp_fds[LEN(c_table_temps)];
 static int c_fan_fds[LEN(c_table_fans)];
 static volatile sig_atomic_t c_sig_caught;
+static const struct timespec c_sleeptime = {INTERVAL_UPDATE, 0};
 
 #define _(x) x
 
@@ -314,7 +316,7 @@ c_init(void)
 		for (unsigned int retry = 3; retry; --retry)
 			if (unlikely((c_temp_fds[i] = open(c_table_temps[i], O_RDONLY)) == -1)) {
 				if (retry != 0)
-					sleep(1);
+					nanosleep(&c_sleeptime, NULL);
 				DIE_GRACEFUL();
 			}
 	for (unsigned int i = 0; i < LEN(c_table_fans); ++i)
@@ -358,7 +360,7 @@ c_mainloop(void)
 		if (unlikely(c_speeds_set(curr_speed) == -1))
 			DIE_GRACEFUL();
 sleep:
-		sleep(INTERVAL_UPDATE);
+		nanosleep(&c_sleeptime, NULL);
 	}
 }
 
