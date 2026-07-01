@@ -344,9 +344,7 @@ c_mainloop(void)
 	unsigned int curr_speed;
 	unsigned int temp;
 	unsigned int hot_secs = 0;
-	for (;;) {
-		if (c_sig_caught)
-			break;
+	for (; !c_sig_caught; ) {
 		temp = c_temp_max_get();
 		if (unlikely(temp == (unsigned int)-1))
 			DIE_GRACEFUL();
@@ -360,8 +358,7 @@ c_mainloop(void)
 		if (unlikely(c_speeds_set(curr_speed) == -1))
 			DIE_GRACEFUL();
 sleep:
-		if (unlikely(sleep(INTERVAL_UPDATE)))
-			continue;
+		sleep(INTERVAL_UPDATE);
 	}
 }
 
