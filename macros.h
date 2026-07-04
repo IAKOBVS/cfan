@@ -27,7 +27,7 @@
 			if (errno)                                                      \
 				perror("");                                             \
 			fprintf(stderr, "%s:%d:%s\n", __FILE__, __LINE__, ASSERT_FUNC); \
-			abort();                                                        \
+			c_exit(EXIT_FAILURE);                                           \
 			x;                                                              \
 		} while (0)
 

@@ -176,35 +176,26 @@ c_mode_setup()
 	if (temptospeed == c_table_temptospeed_med) {
 		if (unlikely(c_puts_len(CFAN_PATH "/" CFAN_FILE_CURVE, O_CREAT | O_EXCL, S_LITERAL("medium\n")) == -1)) {
 			fprintf(stderr, "cfan: can't write to %s.\n", CFAN_PATH "/" CFAN_FILE_CURVE);
-			exit(EXIT_FAILURE);
+			c_exit(EXIT_FAILURE);
 		}
 	} else if (temptospeed == c_table_temptospeed_high) {
 		if (unlikely(c_puts_len(CFAN_PATH "/" CFAN_FILE_CURVE, O_CREAT | O_EXCL, S_LITERAL("high\n")) == -1)) {
 			fprintf(stderr, "cfan: can't write to %s.\n", CFAN_PATH "/" CFAN_FILE_CURVE);
-			exit(EXIT_FAILURE);
+			c_exit(EXIT_FAILURE);
 		}
 	}
 	if (unlikely(chmod(CFAN_PATH "/" CFAN_FILE_CURVE, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH) == -1)) {
 		fprintf(stderr, "cfan: can't chmod %s.\n", CFAN_PATH "/" CFAN_FILE_CURVE);
-		exit(EXIT_FAILURE);
+		c_exit(EXIT_FAILURE);
 	}
 }
 
 static void
 c_mode_cleanup()
 {
-	if (unlikely(unlink(CFAN_PATH "/" CFAN_FILE_CURVE) == -1)) {
-		fprintf(stderr, "cfan: can't remove %s.\n", CFAN_PATH "/" CFAN_FILE_CURVE);
-		exit(EXIT_FAILURE);
-	}
-	if (unlikely(unlink(CFAN_PATH "/" CFAN_FILE_LOCK) == -1)) {
-		fprintf(stderr, "cfan: can't remove %s.\n", CFAN_PATH "/" CFAN_FILE_LOCK);
-		exit(EXIT_FAILURE);
-	}
-	if (unlikely(rmdir(CFAN_PATH) == -1)) {
-		fprintf(stderr, "cfan: can't remove %s.\n", CFAN_PATH);
-		exit(EXIT_FAILURE);
-	}
+	(void)unlink(CFAN_PATH "/" CFAN_FILE_CURVE);
+	(void)unlink(CFAN_PATH "/" CFAN_FILE_LOCK);
+	(void)rmdir(CFAN_PATH);
 }
 
 static void
@@ -245,6 +236,8 @@ c_sig_setup(void)
 	if (unlikely(signal(SIGTERM, c_sig_handler) == SIG_ERR))
 		DIE();
 	if (unlikely(signal(SIGINT, c_sig_handler) == SIG_ERR))
+		DIE();
+	if (unlikely(signal(SIGHUP, c_sig_handler) == SIG_ERR))
 		DIE();
 }
 
