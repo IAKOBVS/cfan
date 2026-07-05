@@ -21,6 +21,9 @@
 #	define CFAN_FILE_CURVE "curve"
 #	define CFAN_FILE_LOCK "cfan.lock"
 
+#	define CFAN_PRINT_TEMP_CPU 1
+#	define CFAN_FILE_TEMP_CPU "temp_cpu"
+
 /* Fan speed: 0-255
  * c_table_temptospeed[temperature] = speed */
 static const unsigned char c_table_temptospeed_med[] = {

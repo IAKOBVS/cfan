@@ -31,6 +31,11 @@ static const struct timespec c_sleeptime = {INTERVAL_UPDATE, 0};
 
 const unsigned char *temptospeed = FAN_CURVE_DEFAULT;
 
+#if CFAN_PRINT_TEMP_CPU
+static int global_fd_temp_cpu = -1;
+static unsigned int global_temp_cpu_old_sz = 0;
+static unsigned int global_temp_cpu_max = 0;
+#endif
 
 unsigned int
 c_temp_sysfs_max_get(void)
@@ -39,6 +44,10 @@ c_temp_sysfs_max_get(void)
 	unsigned int valid = 0;
 	for (unsigned int i = 0, curr; i < LEN(c_table_temps); ++i) {
 		curr = c_temp_fd_get(c_temp_fds[i]);
+#if CFAN_PRINT_TEMP_CPU
+		if (i == CFAN_TEMP_CPU_IDX)
+			global_temp_cpu_max = curr;
+#endif
 		if (unlikely(curr == (unsigned int)-1)) {
 			DBG(fprintf(stderr, "%s:%d:%s: failed to get temperature from %s.\n", __FILE__, __LINE__, ASSERT_FUNC, c_table_temps[i]));
 			continue;
@@ -308,9 +317,53 @@ c_speed_get(unsigned int temp)
 	return next_speed;
 }
 
+static int
+c_temp_write(int fd, unsigned int temp, unsigned int *old_temp_len)
+{
+	char buf[8];
+	unsigned int size = c_utoa_lt3_p(temp, buf) - buf;
+	/* Print milidegrees, like sysfs. */
+	buf[size] = '0';
+	++size;
+	buf[size] = '0';
+	++size;
+	buf[size] = '0';
+	++size;
+	buf[size] = '\n';
+	++size;
+	buf[size] = '\0';
+	if (unlikely(size != *old_temp_len)) {
+		*old_temp_len = size;
+		ftruncate(fd, size);
+	}
+	if (unlikely(pwrite(fd, buf, size, 0) < 0)) {
+		DIE_GRACEFUL();
+		return -1;
+	}
+	return 0;
+}
+
+static int
+c_temp_cpu_init(void)
+{
+	int fd = open(CFAN_PATH "/" CFAN_FILE_TEMP_CPU, O_CREAT | O_WRONLY);
+	if (unlikely(fd < 0)) {
+		DIE_GRACEFUL();
+		return -1;
+	}
+	if (unlikely(chmod(CFAN_PATH "/" CFAN_FILE_TEMP_CPU, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH) == -1)) {
+		fprintf(stderr, "nvspeed: can't chmod %s.\n", CFAN_PATH "/" CFAN_FILE_TEMP_CPU);
+		DIE_GRACEFUL();
+	}
+	return fd;
+}
+
 static void
 c_mainloop(void)
 {
+#if CFAN_PRINT_TEMP_CPU
+	global_fd_temp_cpu = c_temp_cpu_init();
+#endif
 	/* Avoid underflow. */
 	if (unlikely(STEPDOWN_MAX > temptospeed[0])) {
 		fprintf(stderr, "%s:%d:%s: STEPDOWN_MAX (%d) must not be greater than the minimum fan curr_speed (%d).\n", __FILE__, __LINE__, ASSERT_FUNC, STEPDOWN_MAX, temptospeed[0]);
@@ -320,10 +373,20 @@ c_mainloop(void)
 	unsigned int curr_speed;
 	unsigned int temp;
 	unsigned int hot_secs = 0;
+	unsigned int last_max_cpu = 0;
+	unsigned int max_cpu = 0;
 	for (; !c_sig_caught; ) {
 		temp = c_temp_max_get();
 		if (unlikely(temp == (unsigned int)-1))
 			DIE_GRACEFUL();
+#if CFAN_PRINT_TEMP_CPU
+		max_cpu = global_temp_cpu_max;
+		/* Write to tmpfs, if temp has changed */
+		if (max_cpu != last_max_cpu) {
+			c_temp_write(global_fd_temp_cpu, max_cpu, &global_temp_cpu_old_sz);
+			last_max_cpu = max_cpu;
+		}
+#endif
 		curr_speed = c_speed_get(temp);
 		/* Avoid updating when not necessary. */
 		if (curr_speed == last_speed)

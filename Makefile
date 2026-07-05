@@ -8,7 +8,7 @@ REQ += $(REQ_CUDA)
 REQ += config.h cpu.generated.h table-fans.generated.h table-temp.h path.h step.h temp.h
 
 CFLAGS_DEBUG = -DDEBUG=1 -DEXIT_SLOW=1
-CFLAGS = -O2 -march=native -flto -fanalyzer -Wno-unknown-warning-option -Warray-bounds -Wnull-dereference -Wformat -Wunused -Wwrite-strings
+CFLAGS = -g -O2 -march=native -flto -fanalyzer -Wno-unknown-warning-option -Warray-bounds -Wnull-dereference -Wformat -Wunused -Wwrite-strings
 PROG = cfan
 PREFIX = /usr/local
 CC = cc
@@ -45,7 +45,6 @@ clean:
 	rm -f $(PROG) cfan-print test
 
 install: $(PROG) cfan-set-pwm cfan-print
-	strip $(PROG)
 	chmod 755 $^
 	mkdir -p $(DESTDIR)$(PREFIX)/bin
 	command -v rsync >/dev/null && rsync -a -r -c $^ $(DESTDIR)$(PREFIX)/bin || cp -f $^ $(DESTDIR)$(PREFIX)/bin
