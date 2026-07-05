@@ -296,7 +296,7 @@ c_init(void)
 {
 	c_paths_sysfs_resolve();
 	for (unsigned int i = 0; i < LEN(c_table_temps); ++i)
-		for (unsigned int retry = 3; retry; --retry)
+		for (unsigned int retry = 5; retry; --retry)
 			if (unlikely((c_temp_fds[i] = open(c_table_temps[i], O_RDONLY)) == -1)) {
 				if (retry != 0)
 					nanosleep(&c_sleeptime, NULL);
