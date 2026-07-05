@@ -218,9 +218,9 @@ c_cleanup(void)
 		if (unlikely(c_putchar(c_table_fans_enable[i], 0, PWM_ENABLE_AUTO) == -1))
 			DIE_GRACEFUL();
 	}
-	for (unsigned int i = 0; i < LEN(c_table_fans); ++i)
+	for (unsigned int i = 0; i < LEN(c_fan_fds); ++i)
 		close(c_fan_fds[i]);
-	for (unsigned int i = 0; i < LEN(c_table_temps); ++i)
+	for (unsigned int i = 0; i < LEN(c_temp_fds); ++i)
 		close(c_temp_fds[i]);
 	c_mode_cleanup();
 }
@@ -302,9 +302,11 @@ c_init(void)
 					nanosleep(&c_sleeptime, NULL);
 				DIE_GRACEFUL();
 			}
-	for (unsigned int i = 0; i < LEN(c_table_fans); ++i)
-		if (unlikely((c_fan_fds[i] = open(c_table_fans[i], O_WRONLY)) == -1))
+	for (unsigned int i = 0; i < LEN(c_table_fans); ++i) {
+		c_fan_fds[i] = open(c_table_fans[i], O_WRONLY);
+		if (unlikely(c_fan_fds[i] == -1))
 			DIE_GRACEFUL();
+	}
 	c_fans_enable();
 }
 
