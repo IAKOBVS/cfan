@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-07-06
+
+### Fixed O_CREAT missing mode argument
+
+- **`cfan.c` `c_puts_len()`**: Added `mode_t mode` parameter to fix `O_CREAT` calls missing the required mode argument in `open()`. Without it, the created files had undefined permissions (e.g. setuid bit set, causing green `u` icon in lf file manager).
+- **`cfan.c` `c_mode_setup()`**: Pass proper mode (`0600` for lock, `0644` for curve) to the updated `c_puts_len()` calls.
+- **`cfan.c` `c_temp_cpu_init()`**: Added missing mode `0644` to the direct `open()` call with `O_CREAT`.
+
 ## 2026-07-04
 
 ### Fixed lock file cleanup

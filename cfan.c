@@ -127,9 +127,9 @@ c_fanspeed_max_get(void)
 }
 
 static int
-c_puts_len(const char *filename, int oflag, const char *buf, unsigned int len)
+c_puts_len(const char *filename, int oflag, const char *buf, unsigned int len, mode_t mode)
 {
-	int fd = open(filename, O_WRONLY | oflag);
+	int fd = open(filename, O_WRONLY | oflag, mode);
 	if (unlikely(fd == -1))
 		return -1;
 	int write_sz = write(fd, buf, len);
@@ -145,7 +145,7 @@ c_puts_len(const char *filename, int oflag, const char *buf, unsigned int len)
 static ATTR_INLINE int
 c_putchar(const char *filename, int oflag, char c)
 {
-	return c_puts_len(filename, oflag, &c, 1);
+	return c_puts_len(filename, oflag, &c, 1, 0);
 }
 
 enum {
@@ -180,17 +180,17 @@ c_mode_setup()
 {
 	if (mkdir(CFAN_PATH, 0777) != 0)
 		assert(errno == EEXIST);
-	if (unlikely(c_puts_len(CFAN_PATH "/" CFAN_FILE_LOCK, O_CREAT | O_EXCL, "", 0) == -1)) {
+	if (unlikely(c_puts_len(CFAN_PATH "/" CFAN_FILE_LOCK, O_CREAT | O_EXCL, "", 0, S_IRUSR | S_IWUSR) == -1)) {
 		fprintf(stderr, "cfan: another instance is already running.\n");
 		exit(EXIT_FAILURE);
 	}
 	if (temptospeed == c_table_temptospeed_med) {
-		if (unlikely(c_puts_len(CFAN_PATH "/" CFAN_FILE_CURVE, O_CREAT | O_EXCL, S_LITERAL("medium\n")) == -1)) {
+		if (unlikely(c_puts_len(CFAN_PATH "/" CFAN_FILE_CURVE, O_CREAT | O_EXCL, S_LITERAL("medium\n"), S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH) == -1)) {
 			fprintf(stderr, "cfan: can't write to %s.\n", CFAN_PATH "/" CFAN_FILE_CURVE);
 			c_exit(EXIT_FAILURE);
 		}
 	} else if (temptospeed == c_table_temptospeed_high) {
-		if (unlikely(c_puts_len(CFAN_PATH "/" CFAN_FILE_CURVE, O_CREAT | O_EXCL, S_LITERAL("high\n")) == -1)) {
+		if (unlikely(c_puts_len(CFAN_PATH "/" CFAN_FILE_CURVE, O_CREAT | O_EXCL, S_LITERAL("high\n"), S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH) == -1)) {
 			fprintf(stderr, "cfan: can't write to %s.\n", CFAN_PATH "/" CFAN_FILE_CURVE);
 			c_exit(EXIT_FAILURE);
 		}
@@ -359,7 +359,7 @@ c_temp_write(int fd, unsigned int temp, unsigned int *old_temp_len)
 static int
 c_temp_cpu_init(void)
 {
-	int fd = open(CFAN_PATH "/" CFAN_FILE_TEMP_CPU, O_CREAT | O_WRONLY);
+	int fd = open(CFAN_PATH "/" CFAN_FILE_TEMP_CPU, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 	if (unlikely(fd < 0)) {
 		DIE_GRACEFUL();
 		return -1;
