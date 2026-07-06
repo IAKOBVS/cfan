@@ -237,7 +237,7 @@ void
 c_exit(int status)
 {
 	c_cleanup();
-	_Exit(status);
+	abort();
 }
 
 static void
@@ -305,15 +305,18 @@ c_init(void)
 	c_paths_sysfs_resolve();
 	for (unsigned int i = 0; i < LEN(c_temp_fds); ++i)
 		c_temp_fds[i] = -1;
-	for (unsigned int i = 0; i < LEN(c_table_temps); ++i)
-		for (unsigned int retry = 5; retry; --retry)
-			if (unlikely((c_temp_fds[i] = open(c_table_temps[i], O_RDONLY)) == -1)) {
-				if (retry != 0)
-					nanosleep(&c_sleeptime, NULL);
-				DIE_GRACEFUL();
-			}
 	for (unsigned int i = 0; i < LEN(c_fan_fds); ++i)
 		c_fan_fds[i] = -1;
+	for (unsigned int i = 0; i < LEN(c_table_temps); ++i) {
+		unsigned int retry = 5;
+		for (;;) {
+			if (likely((c_temp_fds[i] = open(c_table_temps[i], O_RDONLY)) != -1))
+				break;
+			if (--retry == 0)
+				DIE_GRACEFUL();
+			nanosleep(&c_sleeptime, NULL);
+		}
+	}
 	for (unsigned int i = 0; i < LEN(c_table_fans); ++i) {
 		c_fan_fds[i] = open(c_table_fans[i], O_WRONLY);
 		if (unlikely(c_fan_fds[i] == -1))

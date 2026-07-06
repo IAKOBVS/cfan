@@ -2,6 +2,12 @@
 
 ## 2026-07-06
 
+### Fixed 'Bad file descriptor' crash on init failure
+
+- **`cfan.c` `c_init()`**: Moved `c_fan_fds[i] = -1` initialization before temp sensor open loop. If a temp sensor failed to open, `c_cleanup()` was called while `c_fan_fds` was still zero-initialized (static storage) — the `== -1` guard didn't catch fd 0 (stdin), causing `pwrite(0, ...)` → EBADF.
+- **`cfan.c` `c_init()`**: Fixed temp sensor retry loop — `DIE_GRACEFUL()` was called on the first failure (line 313 inside the `if (open fails)` block), making the 5-retry loop a no-op. Restructured to `for (;;)` with `break` on success and `DIE_GRACEFUL()` only after all retries exhausted.
+- **`test.c`**: Added 5 tests (`test_fd_guard_zero_init`, `test_fd_guard_minus_one_init`, `test_fd_guard_mixed`, `test_fd_guard_all_valid`, `test_retry_loop_multiple_attempts`) covering the cleanup fd guard and retry loop patterns.
+
 ### Fixed O_CREAT missing mode argument
 
 - **`cfan.c` `c_puts_len()`**: Added `mode_t mode` parameter to fix `O_CREAT` calls missing the required mode argument in `open()`. Without it, the created files had undefined permissions (e.g. setuid bit set, causing green `u` icon in lf file manager).

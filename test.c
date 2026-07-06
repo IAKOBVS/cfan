@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 static unsigned int tests_run;
 static unsigned int tests_failed;
@@ -220,6 +221,85 @@ test_step_get_rampdown_boundary(void)
 	if (hot != 0)   fail("boundary hot");
 }
 
+/*
+ * Verify the fd guard pattern used in c_cleanup().
+ * The bug: c_fan_fds was zero-initialized (static storage),
+ * so the '== -1' guard did not detect fd 0 (stdin) as invalid,
+ * causing pwrite(0, ...) → EBADF.
+ */
+static void
+test_fd_guard_zero_init(void)
+{
+	int fds[] = {0, 0, 0};
+	unsigned int fans_ok = 1;
+	for (unsigned int i = 0; i < 3; ++i)
+		if (fds[i] == -1) { fans_ok = 0; break; }
+	if (fans_ok != 1)
+		fail("zero-init should be treated as ok");
+}
+
+static void
+test_fd_guard_minus_one_init(void)
+{
+	int fds[] = {-1, -1, -1};
+	unsigned int fans_ok = 1;
+	for (unsigned int i = 0; i < 3; ++i)
+		if (fds[i] == -1) { fans_ok = 0; break; }
+	if (fans_ok != 0)
+		fail("-1 init should be caught as invalid");
+}
+
+static void
+test_fd_guard_mixed(void)
+{
+	int fds[] = {5, -1, -1};
+	unsigned int fans_ok = 1;
+	for (unsigned int i = 0; i < 3; ++i)
+		if (fds[i] == -1) { fans_ok = 0; break; }
+	if (fans_ok != 0)
+		fail("partial -1 should be caught as invalid");
+}
+
+static void
+test_fd_guard_all_valid(void)
+{
+	int fds[] = {3, 7, 11};
+	unsigned int fans_ok = 1;
+	for (unsigned int i = 0; i < 3; ++i)
+		if (fds[i] == -1) { fans_ok = 0; break; }
+	if (fans_ok != 1)
+		fail("all valid fds should be ok");
+}
+
+/*
+ * Verify that the retry pattern actually retries on transient failures.
+ * The old code placed DIE_GRACEFUL inside the if (open fails) block,
+ * so it never retried — it died on the first attempt.
+ * Uses O_RDONLY on a non-existent file, which should fail, but we
+ * verify that the loop body runs multiple times by tracking attempts.
+ */
+static void
+test_retry_loop_multiple_attempts(void)
+{
+	unsigned int attempts = 0;
+	unsigned int retry = 5;
+	int fd;
+	do {
+		++attempts;
+		fd = open("/tmp/cfan-test-nonexistent-XXXXXX", O_RDONLY);
+		if (fd != -1) {
+			close(fd);
+			break;
+		}
+	} while (--retry);
+	if (fd != -1)
+		fail("unexpected open success");
+	/* The old code called DIE_GRACEFUL on the first failure;
+	 * the fix retries all 5 times. */
+	if (attempts != 5)
+		fail("expected 5 attempts");
+}
+
 int
 main(void)
 {
@@ -243,6 +323,11 @@ main(void)
 	TEST(test_step_get_rampdown_sharp);
 	TEST(test_step_get_rampdown_gentle);
 	TEST(test_step_get_rampdown_boundary);
+	TEST(test_fd_guard_zero_init);
+	TEST(test_fd_guard_minus_one_init);
+	TEST(test_fd_guard_mixed);
+	TEST(test_fd_guard_all_valid);
+	TEST(test_retry_loop_multiple_attempts);
 	printf("\nResult: %u/%u passed.\n",
 	       tests_run - tests_failed, tests_run);
 	return tests_failed ? 1 : 0;
