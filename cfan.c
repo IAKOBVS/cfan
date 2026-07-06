@@ -211,17 +211,23 @@ static void
 c_cleanup(void)
 {
 	/* Set safe speed before restoring auto mode to avoid fan spike. */
-	if (unlikely(c_speeds_set(FANSPEED_DEFAULT) == -1))
-		DIE_GRACEFUL();
+	int fans_ok = 1;
+	for (unsigned int i = 0; i < LEN(c_fan_fds); ++i)
+		if (c_fan_fds[i] == -1) { fans_ok = 0; break; }
+	if (fans_ok)
+		if (unlikely(c_speeds_set(FANSPEED_DEFAULT) == -1))
+			DIE_GRACEFUL();
 	for (unsigned int i = 0; i < LEN(c_table_fans_enable); ++i) {
 		/* Restore mode to auto. */
 		if (unlikely(c_putchar(c_table_fans_enable[i], 0, PWM_ENABLE_AUTO) == -1))
 			DIE_GRACEFUL();
 	}
 	for (unsigned int i = 0; i < LEN(c_fan_fds); ++i)
-		close(c_fan_fds[i]);
+		if (c_fan_fds[i] != -1)
+			close(c_fan_fds[i]);
 	for (unsigned int i = 0; i < LEN(c_temp_fds); ++i)
-		close(c_temp_fds[i]);
+		if (c_temp_fds[i] != -1)
+			close(c_temp_fds[i]);
 	c_mode_cleanup();
 }
 
@@ -295,6 +301,8 @@ void
 c_init(void)
 {
 	c_paths_sysfs_resolve();
+	for (unsigned int i = 0; i < LEN(c_temp_fds); ++i)
+		c_temp_fds[i] = -1;
 	for (unsigned int i = 0; i < LEN(c_table_temps); ++i)
 		for (unsigned int retry = 5; retry; --retry)
 			if (unlikely((c_temp_fds[i] = open(c_table_temps[i], O_RDONLY)) == -1)) {
@@ -302,6 +310,8 @@ c_init(void)
 					nanosleep(&c_sleeptime, NULL);
 				DIE_GRACEFUL();
 			}
+	for (unsigned int i = 0; i < LEN(c_fan_fds); ++i)
+		c_fan_fds[i] = -1;
 	for (unsigned int i = 0; i < LEN(c_table_fans); ++i) {
 		c_fan_fds[i] = open(c_table_fans[i], O_WRONLY);
 		if (unlikely(c_fan_fds[i] == -1))
