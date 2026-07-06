@@ -160,7 +160,9 @@ c_speeds_set(unsigned int speed)
 	/* speed: 0-255 */
 	char speeds[4];
 	/* Convert speed to a string to pass to sysfs. */
-	const unsigned int speeds_len = c_utoa_lt3_p(speed, speeds) - speeds;
+	unsigned int speeds_len = c_utoa_lt3_p(speed, speeds) - speeds;
+	speeds[speeds_len] = '\n';
+	++speeds_len;
 #ifdef DEBUG
 	if (unlikely((int)speed != atoi(speeds)))
 		DIE_GRACEFUL(return -1);
@@ -343,7 +345,6 @@ c_temp_write(int fd, unsigned int temp, unsigned int *old_temp_len)
 	++size;
 	buf[size] = '\n';
 	++size;
-	buf[size] = '\0';
 	if (unlikely(size != *old_temp_len)) {
 		*old_temp_len = size;
 		ftruncate(fd, size);
