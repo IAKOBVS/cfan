@@ -350,7 +350,7 @@ c_temp_write(int fd, unsigned int temp, unsigned int *old_temp_len)
 		*old_temp_len = size;
 		ftruncate(fd, size);
 	}
-	if (unlikely(pwrite(fd, buf, size, 0) < 0)) {
+	if (unlikely(pwrite(fd, buf, size, 0) != size)) {
 		DIE_GRACEFUL();
 		return -1;
 	}

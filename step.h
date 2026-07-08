@@ -1,6 +1,7 @@
 #ifndef STEP_H
 #define STEP_H 1
 
+#include "config.h"
 #include "macros.h"
 
 /* Spike step speed change per update (0-255). */
