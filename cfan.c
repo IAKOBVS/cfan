@@ -303,10 +303,8 @@ void
 c_init(void)
 {
 	c_paths_sysfs_resolve();
-	for (unsigned int i = 0; i < LEN(c_temp_fds); ++i)
-		c_temp_fds[i] = -1;
-	for (unsigned int i = 0; i < LEN(c_fan_fds); ++i)
-		c_fan_fds[i] = -1;
+	memset(c_temp_fds, -1, LEN(c_temp_fds));
+	memset(c_fan_fds, -1, LEN(c_fan_fds));
 	for (unsigned int i = 0; i < LEN(c_table_temps); ++i) {
 		unsigned int retry = 5;
 		for (;;) {
