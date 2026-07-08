@@ -25,76 +25,76 @@ fail(const char *msg)
 }
 
 static void
-test_atou_lt3_1digit(void)
+test_atou_le3_1digit(void)
 {
-	if (c_atou_lt3("0", 1) != 0) fail("0");
-	if (c_atou_lt3("5", 1) != 5) fail("5");
-	if (c_atou_lt3("9", 1) != 9) fail("9");
+	if (c_atou_le3("0", 1) != 0) fail("0");
+	if (c_atou_le3("5", 1) != 5) fail("5");
+	if (c_atou_le3("9", 1) != 9) fail("9");
 }
 
 static void
-test_atou_lt3_2digit(void)
+test_atou_le3_2digit(void)
 {
-	if (c_atou_lt3("10", 2) != 10) fail("10");
-	if (c_atou_lt3("51", 2) != 51) fail("51");
-	if (c_atou_lt3("99", 2) != 99) fail("99");
+	if (c_atou_le3("10", 2) != 10) fail("10");
+	if (c_atou_le3("51", 2) != 51) fail("51");
+	if (c_atou_le3("99", 2) != 99) fail("99");
 }
 
 static void
-test_atou_lt3_3digit(void)
+test_atou_le3_3digit(void)
 {
-	if (c_atou_lt3("100", 3) != 100) fail("100");
-	if (c_atou_lt3("200", 3) != 200) fail("200");
-	if (c_atou_lt3("255", 3) != 255) fail("255");
+	if (c_atou_le3("100", 3) != 100) fail("100");
+	if (c_atou_le3("200", 3) != 200) fail("200");
+	if (c_atou_le3("255", 3) != 255) fail("255");
 }
 
 static void
-test_utoa_lt3_1digit(void)
+test_utoa_le3_1digit(void)
 {
 	char buf[4];
 	char buf2[4];
 	char buf3[4];
-	if (c_utoa_lt3_p(0, buf) != buf + 1
+	if (c_utoa_le3_p(0, buf) != buf + 1
 	    || strcmp(buf, "0") != 0)
 		fail("0");
-	if (c_utoa_lt3_p(5, buf2) != buf2 + 1
+	if (c_utoa_le3_p(5, buf2) != buf2 + 1
 	    || strcmp(buf2, "5") != 0)
 		fail("5");
-	if (c_utoa_lt3_p(9, buf3) != buf3 + 1
+	if (c_utoa_le3_p(9, buf3) != buf3 + 1
 	    || strcmp(buf3, "9") != 0)
 		fail("9");
 }
 
 static void
-test_utoa_lt3_2digit(void)
+test_utoa_le3_2digit(void)
 {
 	char buf[4];
 	char buf2[4];
 	char buf3[4];
-	if (c_utoa_lt3_p(10, buf) != buf + 2
+	if (c_utoa_le3_p(10, buf) != buf + 2
 	    || strcmp(buf, "10") != 0)
 		fail("10");
-	if (c_utoa_lt3_p(51, buf2) != buf2 + 2
+	if (c_utoa_le3_p(51, buf2) != buf2 + 2
 	    || strcmp(buf2, "51") != 0)
 		fail("51");
-	if (c_utoa_lt3_p(99, buf3) != buf3 + 2
+	if (c_utoa_le3_p(99, buf3) != buf3 + 2
 	    || strcmp(buf3, "99") != 0)
 		fail("99");
 }
 
 static void
-test_utoa_lt3_3digit(void)
+test_utoa_le3_3digit(void)
 {
 	char buf[4];
 	char buf2[4];
 	char buf3[4];
-	if (c_utoa_lt3_p(100, buf) != buf + 3
+	if (c_utoa_le3_p(100, buf) != buf + 3
 	    || strcmp(buf, "100") != 0)
 		fail("100");
-	if (c_utoa_lt3_p(200, buf2) != buf2 + 3
+	if (c_utoa_le3_p(200, buf2) != buf2 + 3
 	    || strcmp(buf2, "200") != 0)
 		fail("200");
-	if (c_utoa_lt3_p(255, buf3) != buf3 + 3
+	if (c_utoa_le3_p(255, buf3) != buf3 + 3
 	    || strcmp(buf3, "255") != 0)
 		fail("255");
 }
@@ -306,12 +306,12 @@ main(void)
 	tests_run = 0;
 	tests_failed = 0;
 	printf("Running tests...\n");
-	TEST(test_atou_lt3_1digit);
-	TEST(test_atou_lt3_2digit);
-	TEST(test_atou_lt3_3digit);
-	TEST(test_utoa_lt3_1digit);
-	TEST(test_utoa_lt3_2digit);
-	TEST(test_utoa_lt3_3digit);
+	TEST(test_atou_le3_1digit);
+	TEST(test_atou_le3_2digit);
+	TEST(test_atou_le3_3digit);
+	TEST(test_utoa_le3_1digit);
+	TEST(test_utoa_le3_2digit);
+	TEST(test_utoa_le3_3digit);
 	TEST(test_temp_fd_get_basic);
 	TEST(test_temp_fd_get_nonl);
 	TEST(test_temp_fd_get_hundred);
@@ -332,3 +332,4 @@ main(void)
 	       tests_run - tests_failed, tests_run);
 	return tests_failed ? 1 : 0;
 }
+

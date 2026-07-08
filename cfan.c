@@ -107,7 +107,7 @@ c_fanspeed_get(const char *filename)
 	unsigned int fanspeed_len = sizeof(fanspeed);
 	if (unlikely(c_gets_len(filename, fanspeed, &fanspeed_len)) == -1)
 		return (unsigned int)-1;
-	return c_atou_lt3(fanspeed, (int)fanspeed_len);
+	return c_atou_le3(fanspeed, (int)fanspeed_len);
 }
 
 static unsigned int
@@ -160,7 +160,7 @@ c_speeds_set(unsigned int speed)
 	/* speed: 0-255 */
 	char speeds[4];
 	/* Convert speed to a string to pass to sysfs. */
-	unsigned int speeds_len = c_utoa_lt3_p(speed, speeds) - speeds;
+	unsigned int speeds_len = c_utoa_le3_p(speed, speeds) - speeds;
 	speeds[speeds_len] = '\n';
 	++speeds_len;
 #ifdef DEBUG
@@ -336,7 +336,7 @@ static int
 c_temp_write(int fd, unsigned int temp, unsigned int *old_temp_len)
 {
 	char buf[8];
-	unsigned int size = c_utoa_lt3_p(temp, buf) - buf;
+	unsigned int size = c_utoa_le3_p(temp, buf) - buf;
 	/* Print milidegrees, like sysfs. */
 	buf[size] = '0';
 	++size;
@@ -463,3 +463,4 @@ main(int argc, char **argv)
 	c_cleanup();
 	return EXIT_SUCCESS;
 }
+

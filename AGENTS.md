@@ -47,7 +47,7 @@ sudo make install # strips, installs to /usr/local/bin
 
 ## Testing & linting
 
-- Unit tests: `make test` (builds) / `make check` (build + run). Tests `c_atou_lt3`, `c_utoa_lt3_p` (from `util.h`), `c_temp_fd_get` (from `temp.h`), and `c_step_get` (from `step.h`). 17 tests total.
+- Unit tests: `make test` (builds) / `make check` (build + run). Tests `c_atou_le3`, `c_utoa_le3_p` (from `util.h`), `c_temp_fd_get` (from `temp.h`), and `c_step_get` (from `step.h`). 17 tests total.
 - The Makefile compiles with `-fanalyzer -Warray-bounds -Wnull-dereference -Wformat -Wunused -Wwrite-strings`. These serve as the linting step.
 - No formatter config (no `.clang-format`). Keep style consistent with existing files.
 

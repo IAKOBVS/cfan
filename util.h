@@ -4,7 +4,7 @@
 #include "macros.h"
 
 static unsigned int
-c_atou_lt3(const char *buf, int len)
+c_atou_le3(const char *buf, int len)
 {
 	if (len == 2)
 		return (unsigned int)((*(buf + 0) - '0') * 10
@@ -18,7 +18,7 @@ c_atou_lt3(const char *buf, int len)
 
 /* Not nul-terminated */
 static char *
-c_utoa_lt3_p(unsigned int num, char *buf)
+c_utoa_le3_p(unsigned int num, char *buf)
 {
 	if (likely((unsigned int)(num - 10) < 90)) {
 		*(buf + 0) = (num / 10) + '0';

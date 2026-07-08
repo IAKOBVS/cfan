@@ -19,7 +19,8 @@ c_temp_fd_get(int fd)
 		--read_sz;
 	read_sz -= (int)S_LEN("000");
 	*(buf + read_sz) = '\0';
-	return c_atou_lt3(buf, read_sz);
+	return c_atou_le3(buf, read_sz);
 }
 
 #endif /* TEMP_H */
+
