@@ -306,7 +306,7 @@ c_init(void)
 	memset(c_temp_fds, -1, LEN(c_temp_fds));
 	memset(c_fan_fds, -1, LEN(c_fan_fds));
 	for (unsigned int i = 0; i < LEN(c_table_temps); ++i) {
-		unsigned int retry = 5;
+		unsigned int retry = 10;
 		for (;;) {
 			if (likely((c_temp_fds[i] = open(c_table_temps[i], O_RDONLY)) != -1))
 				break;
