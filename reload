@@ -4,4 +4,4 @@ LOG_FILE=$HOME/.cache/cfan.log
 sudo killall "$BIN"
 make
 sudo make install
-nohup sudo cfan >/dev/null 2>"$LOG_FILE" &
+nohup sudo cfan >"$LOG_FILE" 2>&1 &
